@@ -1,0 +1,12 @@
+{
+  "SessionStart": [
+    {
+      "hooks": [
+        {
+          "type": "command",
+          "command": "\"/usr/bin/node\" \"/home/marcusfreire/src/rascunho/gsd/.codex/hooks/gsd-check-update.js\""
+        }
+      ]
+    }
+  ]
+}
