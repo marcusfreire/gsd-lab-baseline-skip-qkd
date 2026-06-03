@@ -7,6 +7,7 @@ The first milestone establishes a documentation-first and scaffold-first baselin
 ## Phases
 
 **Phase Numbering:**
+
 - Integer phases (1, 2, 3): Planned milestone work
 - Decimal phases (2.1, 2.2): Urgent insertions (marked with INSERTED)
 
@@ -17,22 +18,32 @@ Decimal phases appear between their surrounding integers in numeric order.
 ## Phase Details
 
 ### Phase 1: Phase 0 Contracts and Scaffolding
+
 **Goal:** As a lab/research integrator, I want a precise Phase 0 baseline of contracts, risks, acceptance criteria, and service scaffolding so that later implementation can proceed without protocol ambiguity or hidden provider coupling.
 **Mode:** mvp
 **Depends on:** Nothing (first phase)
 **Requirements:** [DOC-01, DOC-02, DOC-03, DOC-04, DOC-05, DOC-06, DOC-07, PLAN-01, PLAN-02, PLAN-03, PLAN-04, PROTO-01, PROTO-02, PROTO-03, PROTO-04, SCAF-01, SCAF-02, SCAF-03, SCAF-04]
 **Success Criteria** (what must be TRUE):
+
   1. User can inspect the repository and find all Phase 0 deliverables: README, architecture, ETSI mock API, SKIP API, data model, test plan, security assumptions, initial Docker Compose file, and service directory skeletons.
   2. User can read the Phase 0 technical plan and see decomposed tasks, dependencies, risks, mitigations, and acceptance criteria before full service logic exists.
   3. User can verify from the docs that `draft-singh-skip-00` is the pinned SKIP contract and that the Key Provider role is client toward the ETSI 014 mock and server toward the encryptor.
   4. User can verify from the docs and Compose skeleton that KeyProvider-A and KeyProvider-B are independent instances with separate planned SQLite state and no central provider database.
   5. User can see that real Cisco encryptors and real IKEv2/RFC8784 integration are future work, while simulated encryptors are the first planned consumers.
-**Plans:** 4 plans
 
+**Plans:** 4 plans
 Plans:
+**Wave 1**
+
 - [ ] 01-01: Write baseline overview, architecture, and Phase 0 technical plan.
 - [ ] 01-02: Define ETSI 014 mock API, SKIP API, and data model contracts.
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
 - [ ] 01-03: Define test plan, risks, security assumptions, and acceptance criteria.
+
+**Wave 3** *(blocked on Wave 2 completion)*
+
 - [ ] 01-04: Create Docker Compose skeleton and service directory scaffolding without full logic.
 
 ## Progress
