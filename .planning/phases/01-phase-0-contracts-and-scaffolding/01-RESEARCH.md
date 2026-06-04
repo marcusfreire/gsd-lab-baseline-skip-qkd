@@ -2,8 +2,27 @@
 
 **Phase:** 1 - Phase 0 Contracts and Scaffolding
 **Researched:** 2026-06-02
-**Status:** Complete
+**Status:** Superseded by 2026-06-04 architecture rebaseline
 **Question:** What do I need to know to plan this phase well?
+
+## Supersession Notice
+
+This research file predates the 2026-06-04 architecture reassessment. It is
+retained as historical planning input only.
+
+The current baseline authority is:
+
+- `kms/` is part of the official versioned baseline and is the Rust ETSI 014
+  KME simulator source for both `KME-A` and `KME-B`.
+- Do not create a competing `services/kme-mock/` implementation for Phase 0.
+- SKIP `keyId` / `skip_key_id` uses the textual format
+  `SKIP-{master_SAE_ID}-{slave_SAE_ID}-{key_ID}`, for example
+  `SKIP-SAE-A-SAE-B-QKD-000001`.
+- The older HMAC / `SKIP_KEY_ID_NAMESPACE_SECRET` mapping in this file is
+  superseded.
+- Current planning and execution should follow `01-CONTEXT.md`,
+  `docs/etsi014-alignment.md`, `README.md`, `docs/architecture.md`,
+  `docs/data-model.md`, and the current `01-*-PLAN.md` files.
 
 ## Phase Scope
 

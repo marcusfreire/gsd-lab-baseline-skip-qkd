@@ -2,9 +2,10 @@
 
 ## Authority and Scope
 
-The ETSI API baseline follows the supported subset documented by `kms/README.md`
-and ADR 0002. Public routes, methods, JSON names, and key lifecycle behavior
-must remain faithful to ETSI GS QKD 014 for the supported subset.
+The ETSI API baseline follows the supported subset implemented and documented
+by the official versioned `kms/` simulator directory and ADR 0002. Public
+routes, methods, JSON names, and key lifecycle behavior must remain faithful to
+ETSI GS QKD 014 for the supported subset.
 
 This project uses two KME simulator instances:
 

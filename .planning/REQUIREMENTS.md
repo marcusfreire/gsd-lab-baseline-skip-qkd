@@ -1,7 +1,7 @@
 # Requirements: QKD ETSI 014 Mock + SKIP Baseline
 
 **Defined:** 2026-06-02
-**Core Value:** Prove, with precise contracts and a runnable local shape, that independent Key Providers can act as ETSI 014 mock clients toward a simulated KME and as SKIP servers toward encryptors while preserving compatible key material on both sides.
+**Core Value:** Prove, with precise contracts and a runnable local shape, that independent Key Providers can act as SAEs toward separate local KME instances backed by the official versioned `kms/` simulator and as SKIP servers toward encryptors while preserving compatible key material on both sides.
 
 ## v1 Requirements
 
@@ -10,10 +10,10 @@ Requirements for the first project release: Phase 0 technical plan, documentatio
 ### Documentation
 
 - [ ] **DOC-01**: User can read `README.md` to understand the baseline purpose, local topology, Phase 0 scope, and what is intentionally not implemented yet.
-- [ ] **DOC-02**: User can read `docs/architecture.md` to identify KME mock, KeyProvider-A, KeyProvider-B, simulated encryptors, persistence boundaries, and future IKEv2/RFC8784 boundary.
-- [ ] **DOC-03**: User can read `docs/api-etsi014-mock.md` to understand the minimal logical ETSI GS QKD 014 mock profile, including status, initiator key request, responder key retrieval by key IDs, request/response examples, and documented deviations from full ETSI 014.
+- [ ] **DOC-02**: User can read `docs/architecture.md` to identify `kms/` as the official KME simulator baseline for KME-A and KME-B, plus KeyProvider-A, KeyProvider-B, simulated encryptors, persistence boundaries, and future IKEv2/RFC8784 boundary.
+- [ ] **DOC-03**: User can read `docs/api-etsi014-mock.md` to understand the `kms/`-backed minimal logical ETSI GS QKD 014 profile, including status, initiator key request, responder key retrieval by key IDs, request/response examples, and documented deviations from full ETSI 014.
 - [ ] **DOC-04**: User can read `docs/api-skip.md` to see the SKIP API contract pinned to `draft-singh-skip-00`, including `GET /capabilities`, `GET /key`, `GET /key/{keyId}`, `GET /entropy`, query parameters, JSON fields, and status codes.
-- [ ] **DOC-05**: User can read `docs/data-model.md` to distinguish `qkd_key_id`, ETSI `key_ID`, SKIP `keyId` / `skip_key_id`, key material formats, provider state, and deterministic ID derivation.
+- [ ] **DOC-05**: User can read `docs/data-model.md` to distinguish ETSI `key_ID`, SKIP `keyId` / `skip_key_id`, key material formats, provider state, and deterministic textual ID mapping.
 - [ ] **DOC-06**: User can read `docs/test-plan.md` to see planned manual, contract, and end-to-end test scenarios for Phase 0 and later implementation phases.
 - [ ] **DOC-07**: User can read `docs/security-assumptions.md` to understand local-only assumptions, simulated key limits, TLS/authentication deferrals, logging risks, entropy expectations, and non-production claims.
 
@@ -27,13 +27,13 @@ Requirements for the first project release: Phase 0 technical plan, documentatio
 ### Protocol Contracts
 
 - [ ] **PROTO-01**: Documentation states that the Key Provider acts as an ETSI 014 mock client toward the KME and as a SKIP server toward the encryptor.
-- [ ] **PROTO-02**: Documentation states that SKIP `keyId` is deterministically derived from `qkd_key_id`, while key material remains non-derivable from the identifier alone.
+- [ ] **PROTO-02**: Documentation states that SKIP `keyId` is deterministically mapped as `SKIP-{master_SAE_ID}-{slave_SAE_ID}-{key_ID}`, while key material remains non-derivable from the identifier alone.
 - [ ] **PROTO-03**: Documentation states that ETSI-facing key material and SKIP-facing key material use separate protocol representations and must not be collapsed into one untyped field.
 - [ ] **PROTO-04**: Documentation states that real Cisco encryptor integration and real IKEv2/RFC8784 integration are future phases, with simulated encryptors used first.
 
 ### Scaffolding
 
-- [ ] **SCAF-01**: Repository contains `infra/docker-compose.yml` declaring initial services for KME mock, KeyProvider-A, KeyProvider-B, and simulated encryptor components.
+- [ ] **SCAF-01**: Repository contains `infra/docker-compose.yml` declaring initial services for `kme-a`, `kme-b`, KeyProvider-A, KeyProvider-B, and simulated encryptor components, with KME services referencing `kms/`.
 - [ ] **SCAF-02**: Repository contains service directory skeletons for KME mock, configurable Key Provider implementation, and simulated encryptor implementation.
 - [ ] **SCAF-03**: KeyProvider-A and KeyProvider-B scaffolding use separate configuration and separate planned SQLite storage paths or volumes.
 - [ ] **SCAF-04**: Phase 0 scaffolding avoids full service logic while making the intended future implementation locations clear.

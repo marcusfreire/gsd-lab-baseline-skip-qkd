@@ -3,9 +3,10 @@
 ## Purpose
 
 This document records the architecture consensus required by `reavaliar.md`.
-It aligns the QKD ETSI 014 + SKIP baseline with the `kms/` experimental
-Key-Management Simulator, ADRs 0001-0005, and the supported ETSI GS QKD 014
-subset before any endpoint or data-model implementation work proceeds.
+It aligns the QKD ETSI 014 + SKIP baseline with the official versioned `kms/`
+experimental Key-Management Simulator, ADRs 0001-0005, and the supported ETSI
+GS QKD 014 subset before any endpoint or data-model implementation work
+proceeds.
 
 This is a design gate. The baseline may scaffold components, but it must not
 implement ETSI endpoints, SKIP behavior, provider persistence, or encryptor
@@ -81,7 +82,7 @@ mock hidden behind two Key Providers.
 | Area | Current baseline risk | `kms` / ETSI-aligned resolution |
 |---|---|---|
 | KME topology | A single central KME hides cross-KME behavior. | Use separate `KME-A` and `KME-B` simulator instances. |
-| KME implementation | A project-local simplified KME could drift from `kms`. | Treat `kms/` as the KME simulator source for the baseline. |
+| KME implementation | A project-local simplified KME could drift from `kms`. | Treat the committed `kms/` directory as the official KME simulator source for the baseline. |
 | Public ETSI names | Local names can break client fidelity. | Preserve `source_KME_ID`, `target_KME_ID`, `master_SAE_ID`, `slave_SAE_ID`, `key_ID`, and `key_IDs`. |
 | Public ETSI routes | Convenience endpoints can become non-interoperable. | Preserve `status`, `enc_keys`, and `dec_keys` routes under `/api/v1/keys`. |
 | SAE identity | Trusting request data would weaken the protocol model. | Resolve caller SAE from mTLS Common Name, or from `x-sae-id` only when mTLS is disabled. |

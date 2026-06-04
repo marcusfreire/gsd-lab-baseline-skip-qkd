@@ -7,9 +7,13 @@ KME simulator instances, two independent SKIP Key Providers, and simulated
 encryptors for future IKEv2/RFC8784 PPK work.
 
 The KME simulator used by this baseline is the experimental Rust `kms/`
-project. The baseline does not model a quantum channel. It models only logical
-ETSI 014 key delivery through KME behavior that preserves public ETSI routes,
-methods, JSON names, SAE identity policy, and one-time decrypt-key lifecycle.
+project. The `kms/` directory is part of the official versioned baseline, not
+an external reference or optional example. KME-A and KME-B are two configured
+instances of this simulator.
+
+The baseline does not model a quantum channel. It models only logical ETSI 014
+key delivery through KME behavior that preserves public ETSI routes, methods,
+JSON names, SAE identity policy, and one-time decrypt-key lifecycle.
 
 ## Corrected Topology
 
@@ -52,8 +56,9 @@ The baseline uses two KME instances:
 
 | Component | Role |
 |---|---|
-| `KME-A` | ETSI 014 simulator instance for `SAE-A`; public API is `/api/v1/keys`. |
-| `KME-B` | ETSI 014 simulator instance for `SAE-B`; public API is `/api/v1/keys`. |
+| `kms/` | Official Rust ETSI 014 KME simulator source included in this baseline. |
+| `KME-A` | Instance of `kms/` for `SAE-A`; public API is `/api/v1/keys`. |
+| `KME-B` | Instance of `kms/` for `SAE-B`; public API is `/api/v1/keys`. |
 | `KeyProvider-A` | Independent provider that acts as `SAE-A` toward `KME-A` and as SKIP server toward `Encryptor-A`. |
 | `KeyProvider-B` | Independent provider that acts as `SAE-B` toward `KME-B` and as SKIP server toward `Encryptor-B`. |
 | `Encryptor-A sim` | First SKIP consumer; asks `KeyProvider-A` for an outbound PPK. |
@@ -111,6 +116,29 @@ identity comes from the client certificate Common Name. In local HTTP mode,
 
 Successful `dec_keys` retrieval consumes the ETSI key. Repeating `dec_keys` for
 the same `key_ID` must fail.
+
+## Using `kms/`
+
+Use `kms/` as the KME simulator crate for both local KME services. From the
+repository root, the Rust workspace includes `kms` as a member. The expected
+verification path is:
+
+```bash
+cargo fmt --all -- --check
+cargo clippy --workspace --all-targets -- -D warnings
+cargo test --workspace
+```
+
+To run only the KME simulator tests:
+
+```bash
+cargo test -p kms
+```
+
+The Compose scaffold mounts `../kms` into both `kme-a` and `kme-b`, with
+separate KME IDs and separate storage paths. Future implementation work should
+extend the official `kms/` crate for ETSI 014 simulator behavior rather than
+creating a competing `services/kme-mock/` implementation.
 
 ## Documentation
 

@@ -13,8 +13,9 @@ This architecture is based on:
 - `kms/adrs/0005-testing-and-fidelity-guidelines.md`
 - `AES_VPN_Prototypes.md`
 
-The `kms/` Rust project is the KME simulator for this baseline. It is not
-production KMS software.
+The `kms/` Rust project is the KME simulator for this baseline. The `kms/`
+directory is part of the official versioned baseline and is the source used to
+instantiate KME-A and KME-B. It is not production KMS software.
 
 The formal ETSI 014 alignment gate is documented in
 `docs/etsi014-alignment.md`. It records the consensus required before endpoint
@@ -51,8 +52,9 @@ KME-B <--- ETSI 014 as SAE-B --- KeyProvider-B <--- SKIP --- Encryptor-B
 
 ### KME-A and KME-B
 
-`KME-A` and `KME-B` are separate `kms/` simulator instances. Each exposes the
-ETSI 014 subset under `/api/v1/keys`:
+`KME-A` and `KME-B` are separate runtime instances of the official `kms/`
+simulator crate included in this repository. Each exposes the ETSI 014 subset
+under `/api/v1/keys`:
 
 - `GET /api/v1/keys/{slave_SAE_ID}/status`
 - `POST /api/v1/keys/{slave_SAE_ID}/enc_keys`
@@ -62,7 +64,8 @@ ETSI 014 subset under `/api/v1/keys`:
 
 Each KME has its own storage. For the paired baseline, a deterministic
 seed/fake key-source must make both KME instances know the same logical key
-bytes for the same ETSI `key_ID`.
+bytes for the same ETSI `key_ID`. Future ETSI 014 simulator work belongs in
+`kms/`, not in a competing `services/kme-mock/` tree.
 
 ### KeyProvider-A
 

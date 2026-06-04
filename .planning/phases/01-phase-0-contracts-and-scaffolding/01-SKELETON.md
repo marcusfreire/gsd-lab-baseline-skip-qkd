@@ -14,7 +14,7 @@ logic exists.
 
 | Decision | Choice | Rationale |
 |---|---|---|
-| KME simulator | Two `kms/` Rust simulator instances: `KME-A` and `KME-B` | Preserves the ETSI 014 topology and avoids hiding both sides behind one central KME. |
+| KME simulator | Two instances of the official versioned `kms/` Rust simulator: `KME-A` and `KME-B` | Preserves the ETSI 014 topology and avoids hiding both sides behind one central KME. |
 | Key Provider implementation | Future Python/FastAPI service under `services/keyprovider/`, instantiated as A and B | Keeps provider logic configurable while preserving separate runtime state. |
 | Simulated encryptor implementation | Future Python/FastAPI or CLI scaffold under `services/encryptor-sim/` | Gives SKIP a first consumer before Cisco or real IKEv2/RFC8784 work. |
 | Data layer | Separate KME state per KME and separate SQLite database per Key Provider | Preserves independence and exposes synchronization assumptions. |

@@ -2,7 +2,22 @@
 
 **Phase:** 1 - Phase 0 Contracts and Scaffolding
 **Generated:** 2026-06-02
-**Status:** Complete
+**Status:** Superseded by 2026-06-04 architecture rebaseline
+
+## Supersession Notice
+
+This pattern map predates the architecture reassessment that made `kms/` part
+of the official versioned baseline.
+
+Current executor guidance:
+
+- KME simulator code lives in the committed `kms/` directory.
+- `KME-A` and `KME-B` are separate runtime instances of `kms/`.
+- Do not create `services/kme-mock/` as a competing KME simulator source.
+- Future service scaffolds are `services/keyprovider/` and
+  `services/encryptor-sim/`.
+- SKIP `keyId` mapping is textual:
+  `SKIP-{master_SAE_ID}-{slave_SAE_ID}-{key_ID}`.
 
 ## Summary
 

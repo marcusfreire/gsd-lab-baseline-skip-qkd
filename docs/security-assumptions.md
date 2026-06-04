@@ -5,9 +5,10 @@
 This repository is a local experimental baseline. It is not production KMS,
 production VPN, or production key-management software.
 
-The `kms/` simulator is high fidelity for the supported ETSI 014 subset, but it
-does not provide HSM integration, clustered consistency, compliance controls,
-or production secret lifecycle management.
+The committed `kms/` simulator is part of the official baseline and is high
+fidelity for the supported ETSI 014 subset, but it does not provide HSM
+integration, clustered consistency, compliance controls, or production secret
+lifecycle management.
 
 ## Topology Is Authorization
 

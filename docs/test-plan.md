@@ -14,7 +14,13 @@ test -f docs/data-model.md
 test -f docs/test-plan.md
 test -f docs/security-assumptions.md
 test -f infra/docker-compose.yml
+test -f Cargo.toml
+test -d kms
+test -f kms/Cargo.toml
+test -f kms/src/routes/etsi014.rs
+git ls-files --error-unmatch Cargo.toml kms/Cargo.toml kms/src/routes/etsi014.rs >/tmp/qkd-skip-kms-files.txt
 rg -n "KME-A|KME-B|KeyProvider-A|KeyProvider-B" README.md docs infra/docker-compose.yml
+rg -n "official versioned|part of the official versioned baseline|not services/kme-mock|../kms" README.md docs infra/docker-compose.yml
 rg -n "master_SAE_ID|slave_SAE_ID|one-time|dec_keys|key handoff|key-source|simulated synchronization" docs/etsi014-alignment.md
 rg -n "status|enc_keys|dec_keys" docs/api-etsi014-mock.md
 rg -n "source_KME_ID|target_KME_ID|master_SAE_ID|slave_SAE_ID|key_ID|key_IDs" docs/api-etsi014-mock.md docs/data-model.md
@@ -30,7 +36,8 @@ docker compose -f infra/docker-compose.yml config
 
 ## KMS Simulator Checks
 
-The `kms/` simulator is validated with:
+The `kms/` simulator is part of the official versioned baseline. It is
+validated with:
 
 ```bash
 cargo fmt --all -- --check
