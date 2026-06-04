@@ -1,6 +1,33 @@
 # Test Plan
 
-## Phase 0 Documentation Checks
+## Phase 0 Verification
+
+Phase 0 verifies contracts and scaffolding. It does not require containers to
+start, running service logic, or successful end-to-end traffic. The baseline is
+accepted when documentation and scaffolds prove the intended shape and future
+test obligations.
+
+## Manual Checklist
+
+- Required docs exist: README, architecture, ETSI alignment, ETSI mock API,
+  SKIP API, data model, test plan, and security assumptions.
+- `infra/docker-compose.yml` exists and declares `kme-a`, `kme-b`,
+  `keyprovider-a`, `keyprovider-b`, `encryptor-a-sim`, and
+  `encryptor-b-sim`.
+- Future service scaffolds exist for Key Provider and simulated encryptors.
+- SKIP is pinned to `draft-singh-skip-00`.
+- ETSI public JSON names include `source_KME_ID`, `target_KME_ID`,
+  `master_SAE_ID`, `slave_SAE_ID`, `key_ID`, and `key_IDs`.
+- The topology uses two KME instances with separate KME state.
+- KeyProvider-A and KeyProvider-B use separate planned SQLite state with no
+  central provider database.
+- KME-A and KME-B use deterministic fake key-source synchronization for
+  matching logical key bytes by `key_ID`.
+- SKIP `keyId` uses `SKIP-{master_SAE_ID}-{slave_SAE_ID}-{key_ID}`.
+- Phase 0 has no full service logic, route handlers, database schemas, or
+  working FastAPI entrypoints.
+
+## Documentation Consistency Checks
 
 Run these source checks after documentation/scaffolding changes:
 
@@ -28,11 +55,15 @@ rg -n "base64.*bytes.*hex|ETSI base64 -> bytes -> SKIP hex" docs
 rg -n "NetSquid|BB84|quantum channel" README.md docs/security-assumptions.md docs/architecture.md
 ```
 
-If Docker Compose is available:
+## Docker Compose Check
+
+If Docker Compose is available, run:
 
 ```bash
 docker compose -f infra/docker-compose.yml config
 ```
+
+Phase 0 does not require containers to start.
 
 ## KMS Simulator Checks
 
@@ -57,7 +88,7 @@ If the default Cargo target directory is not writable:
 cargo test --target-dir /tmp/quiin-cargo-target -p kms
 ```
 
-## Contract Tests To Implement
+## Future Contract Tests
 
 ### ETSI route fidelity
 
@@ -112,6 +143,8 @@ ETSI base64 -> bytes -> SKIP hex
 
 The expected output is that `KeyProvider-A` and `KeyProvider-B` return the same
 hex key for the same synchronized logical ETSI `key_ID`.
+
+## Future End-to-End Tests
 
 ### End-to-end SKIP flow
 
