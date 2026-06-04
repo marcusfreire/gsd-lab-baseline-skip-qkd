@@ -1,1002 +1,680 @@
-# 1. Objetivo do teste
+# Objetivo: baseline ETSI 014 + SKIP com preparacao para Cisco
 
-O objetivo do ambiente é demonstrar que:
+## 1. Objetivo do teste
+
+O objetivo do ambiente e demonstrar, de forma executavel e local, que:
 
 ```text
-Alice e Bob conseguem obter a mesma PPK
-a partir de uma API simulada ETSI GS QKD 014,
+Alice e Bob conseguem obter material de PPK equivalente
+a partir de duas instancias logicas ETSI GS QKD 014,
 por meio de Key Providers independentes,
-e disponibilizá-la via SKIP para uso com IKEv2/RFC8784.
+e expor esse material via SKIP para uso futuro em IKEv2/RFC8784.
 ```
 
-Nesta fase, o “QKD” não será um simulador físico. Será um **Mock KME ETSI 014**, cuja função é entregar a mesma chave para os dois lados, como se essa chave tivesse sido produzida por uma infraestrutura QKD real.
+Nesta baseline, o "QKD" nao e um simulador fisico. O projeto nao modela canal
+quantico, BB84, NetSquid, QBER, reconciliacao ou privacy amplification.
 
----
+O que a baseline testa e a entrega logica de material de chave por um
+subconjunto fiel do ETSI GS QKD 014, usando o KMS Experimental
+Key-Management Simulator em `kms/` como fonte oficial das duas KMEs locais.
 
-# 2. Arquitetura lógica recomendada
+## 2. Fontes de autoridade
+
+Este documento deve permanecer consistente com:
+
+- `baseline.md`
+- `docs/architecture.md`
+- `docs/etsi014-alignment.md`
+- `docs/api-etsi014-mock.md`
+- `docs/api-skip.md`
+- `docs/data-model.md`
+- `docs/security-assumptions.md`
+- `kms/README.md`
+- `kms/adrs/0001-experimental-key-management-simulator.md`
+- `kms/adrs/0002-etsi-014-protocol-fidelity.md`
+- `kms/adrs/0003-sae-identity-and-topology-policy.md`
+- `kms/adrs/0004-key-source-and-etsi-storage-lifecycle.md`
+- `kms/adrs/0005-testing-and-fidelity-guidelines.md`
+
+Autoridade externa:
+
+- ETSI GS QKD 014 para a fronteira KME/SAE.
+- `draft-singh-skip-00` para a fronteira Key Provider/encryptor.
+- RFC 8784 apenas como contexto futuro para PPK em IKEv2.
+- Roteadores Cisco apenas como consumidor futuro de SKIP/RFC8784, nao como
+  funcionalidade validada nesta baseline.
+
+## 3. Hipotese tecnica
+
+A hipotese do teste e:
 
 ```text
-                      +--------------------------------+
-                      |      ETSI 014 Mock Layer        |
-                      |                                |
-                      |  Gera chaves sincronizadas      |
-                      |  qkd_key_id + key_value         |
-                      +---------------+----------------+
-                                      |
-                    mesma chave para Alice e Bob
-                                      |
-        +-----------------------------+-----------------------------+
-        |                                                           |
-+-------v--------+                                          +-------v--------+
-|    KME-A       |                                          |    KME-B       |
-| Mock ETSI 014  |                                          | Mock ETSI 014  |
-| API Alice      |                                          | API Bob        |
-+-------+--------+                                          +-------+--------+
-        |                                                           |
-        | ETSI 014-like                                             | ETSI 014-like
-        | GET_STATUS                                                | GET_STATUS
-        | GET_KEY                                                   | GET_KEY_WITH_KEY_IDS
-        v                                                           v
-+-------+--------+                                          +-------+--------+
-| KeyProvider-A |                                          | KeyProvider-B |
-| SKIP Server A |                                          | SKIP Server B |
-| Banco local A |                                          | Banco local B |
-+-------+--------+                                          +-------+--------+
-        |                                                           |
-        | SKIP                                                      | SKIP
-        v                                                           v
-+-------+--------+           IKEv2 + RFC8784 + IPsec        +-------+--------+
-| Cisco Router A|<----------------------------------------->| Cisco Router B|
-| Encryptor A   |                                          | Encryptor B   |
-+----------------+                                          +----------------+
+Se duas KMEs locais implementam o subconjunto ETSI GS QKD 014 adotado pelo
+kms/ e conhecem os mesmos bytes de chave para o mesmo key_ID, entao dois
+Key Providers independentes podem atuar como SAE-A e SAE-B, coletar a chave
+em suas KMEs locais, converter ETSI base64 para SKIP hex e entregar o mesmo
+material de PPK para Alice e Bob via SKIP.
 ```
 
----
+Essa hipotese separa claramente:
 
-# 3. Decisão arquitetural importante: `skip_key_id` determinístico
+| Area | Status na baseline |
+|---|---|
+| ETSI 014 logico | Dentro do escopo. |
+| `kms/` como KME experimental | Dentro do escopo. |
+| SKIP para encryptors simulados | Dentro do escopo. |
+| RFC 8784/IKEv2 real | Futuro. |
+| Roteadores Cisco reais | Futuro. |
+| QKD fisico | Fora do escopo. |
+| Producao | Fora do escopo. |
 
-Para o baseline, eu recomendo que o `skip_key_id` seja derivado de forma determinística a partir do `qkd_key_id`.
+## 4. Decisao central de arquitetura
+
+A baseline usa duas instancias separadas do `kms/`, nao uma KME generica e nao
+um servico KME Python paralelo.
+
+```text
+KME-A = instancia do kms/ com KME_ID=KME-A e SAE local SAE-A
+KME-B = instancia do kms/ com KME_ID=KME-B e SAE local SAE-B
+```
+
+`KeyProvider-A` atua como `SAE-A` e chama somente `KME-A`.
+`KeyProvider-B` atua como `SAE-B` e chama somente `KME-B`.
+
+Cada Key Provider possui seu proprio SQLite. Nao existe banco central entre
+providers. Cada KME tambem possui storage separado. A unica sincronizacao
+permitida na baseline e uma fake key-source deterministica, configurada nos
+dois lados, para que o mesmo ETSI `key_ID` gere ou resolva os mesmos bytes.
+
+## 5. Arquitetura logica
+
+```text
+                 ETSI GS QKD 014 subset                      SKIP subset
+
+  +-----------------------------+                     +----------------------+
+  | KME-A                       |                     | Encryptor-A sim      |
+  | kms simulator instance      |                     | localSystemID=Alice  |
+  | KME_ID=KME-A                |                     +----------+-----------+
+  | connected SAE: SAE-A        |                                |
+  | independent KME storage     |                                | GET /key?remoteSystemID=Bob
+  +--------------+--------------+                                v
+                 ^                                  +-------------+-------------+
+                 | status, enc_keys                 | KeyProvider-A             |
+                 | caller SAE: SAE-A                | ETSI client identity SAE-A|
+                 | peer SAE: SAE-B                  | SKIP server for Alice     |
+                 |                                  | independent SQLite DB     |
+                 |                                  +-------------+-------------+
+                 |                                                |
+                 |                                                | keyId handoff
+                 |                                                v
+                 |                                  +-------------+-------------+
+                 |                                  | KeyProvider-B             |
+                 |                                  | ETSI client identity SAE-B|
+                 |                                  | SKIP server for Bob       |
+                 |                                  | independent SQLite DB     |
+                 |                                  +-------------+-------------+
+                 |                                                ^
+                 v                                                | GET /key/{keyId}?remoteSystemID=Alice
+  +--------------+--------------+                                |
+  | KME-B                       |                     +----------+-----------+
+  | kms simulator instance      |                     | Encryptor-B sim      |
+  | KME_ID=KME-B                |                     | localSystemID=Bob    |
+  | connected SAE: SAE-B        |                     +----------------------+
+  | independent KME storage     |
+  +-----------------------------+
+```
+
+O handoff de `keyId` entre encryptors simulados representa, no laboratorio, o
+futuro transporte de uma identidade de PPK. Ele nao implementa IKEv2, IPsec ou
+RFC 8784 real.
+
+## 6. Papeis dos componentes
+
+| Componente | Papel | Limite |
+|---|---|---|
+| `kms/` | Simulador Rust oficial da baseline para KME-A e KME-B. | Nao e KMS de producao. |
+| `KME-A` | Servidor ETSI 014 local de `SAE-A`. | Nao fala SKIP. |
+| `KME-B` | Servidor ETSI 014 local de `SAE-B`. | Nao fala SKIP. |
+| `KeyProvider-A` | Cliente ETSI como `SAE-A` e servidor SKIP para Alice. | Nao chama `KME-B`. |
+| `KeyProvider-B` | Cliente ETSI como `SAE-B` e servidor SKIP para Bob. | Nao chama `KME-A`. |
+| `Encryptor-A sim` | Cliente SKIP que solicita chave nova para Bob. | Nao e SAE ETSI. |
+| `Encryptor-B sim` | Cliente SKIP que recupera chave por `keyId`. | Nao e Cisco real. |
+| Roteadores Cisco | Consumidores futuros de SKIP/RFC8784. | Fora da validacao atual. |
+
+## 7. Contrato ETSI 014 adotado pelo `kms/`
+
+O objetivo nao deve usar nomes de conveniencia para a API ETSI. O subconjunto
+publico aceito e:
+
+| Metodo | Path | Uso |
+|---|---|---|
+| `GET` | `/api/v1/keys/{slave_SAE_ID}/status` | Status/topologia para o slave SAE solicitado. |
+| `POST` | `/api/v1/keys/{slave_SAE_ID}/enc_keys` | Requisicao completa de chaves de cifragem. |
+| `GET` | `/api/v1/keys/{slave_SAE_ID}/enc_keys` | Forma simples de requisicao de chaves. |
+| `POST` | `/api/v1/keys/{master_SAE_ID}/dec_keys` | Recuperacao completa por IDs de chave. |
+| `GET` | `/api/v1/keys/{master_SAE_ID}/dec_keys` | Forma simples de recuperacao por `key_ID`. |
+
+Nomes JSON publicos devem preservar o ETSI:
+
+- `source_KME_ID`
+- `target_KME_ID`
+- `master_SAE_ID`
+- `slave_SAE_ID`
+- `key_ID`
+- `key_IDs`
+- `additional_slave_SAE_IDs`
+- `extension_mandatory`
+- `extension_optional`
+- `status_extension`
+- `key_container_extension`
+
+O material de chave na fronteira ETSI e base64. O material de chave na
+fronteira SKIP e hexadecimal.
+
+## 8. Identidade SAE e autorizacao
+
+Topologia SAE/KME e politica de autorizacao, nao apenas metadata.
+
+| Modo | Fonte da identidade SAE |
+|---|---|
+| mTLS habilitado | Common Name do certificado de cliente autenticado |
+| mTLS desabilitado | Header local `x-sae-id` |
+
+`x-sae-id` so e valido em HTTP local sem mTLS. Em modo mTLS, o caller SAE vem
+do certificado.
+
+Antes de liberar chave, a KME deve rejeitar:
+
+- caller SAE desconhecido;
+- peer SAE desconhecido;
+- master incorreto;
+- slave incorreto;
+- ownership divergente;
+- chave inexistente;
+- chave ja consumida;
+- tamanho de chave nao suportado;
+- `extension_mandatory` nao suportado.
+
+## 9. `keyId` SKIP deterministico
+
+O identificador SKIP da baseline e:
+
+```text
+skip_key_id = SKIP-{master_SAE_ID}-{slave_SAE_ID}-{key_ID}
+```
 
 Exemplo:
 
 ```text
-qkd_key_id  = QKD-000001
-skip_key_id = SKIP-Alice-Bob-QKD-000001
+key_ID      = QKD-000001
+master SAE  = SAE-A
+slave SAE   = SAE-B
+skip_key_id = SKIP-SAE-A-SAE-B-QKD-000001
 ```
 
-Isso simplifica muito a arquitetura porque:
+Esse identificador nao contem material de chave. Ele existe para handoff,
+debug e resolucao deterministica no laboratorio.
 
-1. O `KeyProvider-A` recebe `qkd_key_id` da `KME-A`.
-2. O `KeyProvider-A` gera `skip_key_id`.
-3. O roteador Alice envia `skip_key_id` no IKEv2/RFC8784.
-4. O roteador Bob consulta `KeyProvider-B` com esse `skip_key_id`.
-5. O `KeyProvider-B` extrai ou resolve o `qkd_key_id`.
-6. O `KeyProvider-B` consulta `KME-B` via `GET_KEY_WITH_KEY_IDS`.
-7. Bob recebe a mesma PPK.
+### 9.1 Contrato SKIP que prepara a fase Cisco
 
-Assim, você evita, no baseline, um canal extra de sincronização entre `KeyProvider-A` e `KeyProvider-B`.
+Os Key Providers devem expor o subconjunto SKIP documentado em
+`docs/api-skip.md`:
 
-Em produção, esse identificador poderia ser opaco, por exemplo com HMAC ou UUID, mas isso exigiria sincronização adicional do mapeamento entre Key Providers.
+| Metodo | Path | Uso |
+|---|---|---|
+| `GET` | `/capabilities` | Publica capacidades e sistemas locais/remotos. |
+| `GET` | `/key?remoteSystemID={id}` | Entrega uma chave nova para o sistema remoto. |
+| `GET` | `/key?remoteSystemID={id}&size={bits}` | Entrega chave nova com tamanho solicitado. |
+| `GET` | `/key/{keyId}?remoteSystemID={id}` | Recupera chave existente pelo `keyId`. |
+| `GET` | `/entropy` | Entrega entropia conforme contrato SKIP. |
+| `GET` | `/entropy?minentropy={bits}` | Entrega entropia minima solicitada. |
 
----
+Campos publicos relevantes:
 
-# 4. Arquitetura de máquina virtual
+- `localSystemID`
+- `remoteSystemID`
+- `keyId`
+- `key`
+- `entropy`
 
-## 4.1 Opção recomendada para desenvolvimento
+Para a fase Cisco, o ponto critico e que o `key` retornado por SKIP seja
+hexadecimal e que `keyId` seja resolvivel nos dois lados sem banco central
+entre Key Providers.
 
-Use uma única VM Ubuntu para hospedar os componentes de software:
+## 10. Fluxo ponta a ponta
 
-```text
-VM: qkd-skip-lab
-Sistema: Ubuntu Server 22.04 ou 24.04
-CPU: 4 vCPU mínimo, 8 vCPU recomendado
-RAM: 8 GB mínimo, 16 GB recomendado
-Disco: 80 GB mínimo
-Runtime: Docker ou Podman
-Linguagem: Python 3.11+
-Framework: FastAPI
-Banco: PostgreSQL ou SQLite inicial
-Testes: pytest
-```
-
-Dentro dessa VM, execute os serviços como containers:
-
-```text
-qkd-skip-lab
-├── mock-kme-a
-├── mock-kme-b
-├── keyprovider-a
-├── keyprovider-b
-├── db-kme-a
-├── db-kme-b
-├── db-kp-a
-├── db-kp-b
-└── test-runner
-```
-
-Para a primeira versão, você pode reduzir bancos separados e usar SQLite por serviço. Para uma versão mais realista, use PostgreSQL separado para cada KME e cada Key Provider.
-
----
-
-## 4.2 Arquitetura com roteadores Cisco
-
-Você terá duas opções.
-
-### Opção A: Cisco Catalyst 8000V
-
-Essa é a opção mais alinhada ao seu objetivo.
-
-```text
-Cisco Catalyst 8000V A  ←→  Cisco Catalyst 8000V B
-```
-
-A documentação Cisco informa que o recurso de quantum-safe encryption com PPK implementa **RFC 8784 e Cisco SKIP** para IKEv2/IPsec. Também indica suporte em plataformas como Cisco Catalyst 8000V, Catalyst 8300, Catalyst 8500, ASR 1000 e ISR 1000, com observação de que, quando se usa SKIP, a fonte de chave deve enviar a chave em formato hexadecimal. Verificado em: 2026-06-02. ([Cisco][2])
-
-Topologia:
-
-```text
-                 Rede de gerenciamento SKIP
-                 172.16.100.0/24
-
-+-------------------+                         +-------------------+
-| KeyProvider-A     |                         | KeyProvider-B     |
-| 172.16.100.10     |                         | 172.16.100.20     |
-+---------+---------+                         +---------+---------+
-          |                                             |
-          | HTTPS/SKIP                                  | HTTPS/SKIP
-          |                                             |
-+---------v---------+       WAN/IPsec link      +--------v----------+
-| Cisco 8000V A     |-------------------------->| Cisco 8000V B     |
-| 172.16.100.101    |       10.0.12.0/30        | 172.16.100.102    |
-| LAN-A: 192.168.10.1                         | LAN-B: 192.168.20.1|
-+-------------------+                         +-------------------+
-```
-
-Redes sugeridas:
-
-```text
-Mgmt/SKIP: 172.16.100.0/24
-WAN:       10.0.12.0/30
-LAN-A:     192.168.10.0/24
-LAN-B:     192.168.20.0/24
-```
-
----
-
-### Opção B: Simulador de encryptor
-
-Antes de integrar o Cisco real, crie dois clientes simulados:
-
-```text
-encryptor-a-sim
-encryptor-b-sim
-```
-
-Eles fazem apenas:
-
-```text
-Encryptor-A:
-GET /key?remoteSystemID=Bob
-
-Encryptor-B:
-GET /key/{skip_key_id}?remoteSystemID=Alice
-```
-
-Essa opção valida a arquitetura sem depender de configuração Cisco.
-
-Minha recomendação é:
-
-```text
-Fase 1: usar encryptors simulados.
-Fase 2: integrar Cisco Catalyst 8000V.
-```
-
----
-
-# 5. Arquitetura de serviços
-
-## 5.1 Serviços principais
-
-```text
-mock-kme-a
-mock-kme-b
-keyprovider-a
-keyprovider-b
-encryptor-a-sim
-encryptor-b-sim
-```
-
-## 5.2 Serviços auxiliares
-
-```text
-seed-service
-test-runner
-observability
-```
-
-O `seed-service` gera pares de chaves sincronizadas e registra a mesma chave em `KME-A` e `KME-B`.
-
----
-
-# 6. Fluxo detalhado ponta a ponta
-
-## 6.1 Geração lógica da chave
-
-O `seed-service` gera:
-
-```json
-{
-  "qkd_key_id": "QKD-000001",
-  "key": "6F4A98B2C1E3...",
-  "size": 256,
-  "alice_kme": "KME-A",
-  "bob_kme": "KME-B",
-  "status": "available"
-}
-```
-
-A mesma chave é inserida em `KME-A` e `KME-B`.
-
----
-
-## 6.2 KeyProvider-A coleta chave
+### 10.1 KeyProvider-A consulta status
 
 ```http
-POST http://mock-kme-a:8001/api/v1/keys/get_key
+GET /api/v1/keys/SAE-B/status
+x-sae-id: SAE-A
 ```
 
-Payload:
+Resposta esperada:
 
 ```json
 {
-  "source_sae_id": "KeyProvider-A",
-  "target_sae_id": "KeyProvider-B",
-  "size": 256,
-  "number": 1
+  "source_KME_ID": "KME-A",
+  "target_KME_ID": "KME-B",
+  "master_SAE_ID": "SAE-A",
+  "slave_SAE_ID": "SAE-B",
+  "key_size": 256,
+  "stored_key_count": 1000000,
+  "max_key_count": 1000000,
+  "max_key_per_request": 128,
+  "max_key_size": 256,
+  "min_key_size": 256,
+  "max_SAE_ID_count": 0,
+  "status_extension": {}
 }
 ```
 
-Resposta:
+### 10.2 KeyProvider-A solicita `enc_keys`
+
+```http
+POST /api/v1/keys/SAE-B/enc_keys
+content-type: application/json
+x-sae-id: SAE-A
+```
+
+```json
+{ "number": 1, "size": 256 }
+```
+
+Resposta ETSI:
 
 ```json
 {
   "keys": [
     {
       "key_ID": "QKD-000001",
-      "key": "6F4A98B2C1E3..."
+      "key": "<base64>"
     }
-  ]
+  ],
+  "key_container_extension": {}
 }
 ```
 
-O `KeyProvider-A` cria:
+`KME-A` registra a chave com:
 
 ```text
-skip_key_id = SKIP-Alice-Bob-QKD-000001
+master_sae_id = SAE-A
+slave_sae_id  = SAE-B
+key_ID        = QKD-000001
 ```
 
-E armazena:
+### 10.3 KeyProvider-A entrega SKIP para Alice
+
+O provider converte:
 
 ```text
-SKIP-Alice-Bob-QKD-000001 → QKD-000001 → 6F4A98B2C1E3...
+ETSI base64 -> bytes -> SKIP hex
 ```
 
----
-
-## 6.3 Encryptor-A solicita PPK via SKIP
+`Encryptor-A sim` chama:
 
 ```http
-GET https://keyprovider-a:9443/key?remoteSystemID=Bob
+GET /key?remoteSystemID=Bob
 ```
 
 Resposta SKIP:
 
 ```json
 {
-  "keyId": "SKIP-Alice-Bob-QKD-000001",
-  "key": "6F4A98B2C1E3..."
+  "keyId": "SKIP-SAE-A-SAE-B-QKD-000001",
+  "key": "<hex>"
 }
 ```
 
-O SKIP define o modelo em que o encryptor obtém uma chave e um `keyId` de seu Key Provider local, e o peer usa esse `keyId` para recuperar a mesma chave em seu próprio Key Provider. Verificado em: 2026-06-02. ([IETF Datatracker][3])
+### 10.4 Handoff de `keyId`
 
----
+`Encryptor-A sim` passa apenas o `keyId` para `Encryptor-B sim`.
 
-## 6.4 Cisco Router A usa o `keyId`
+Na futura integracao com roteadores Cisco, esse ponto deve corresponder ao
+conceito de identidade de PPK transportada pela negociacao IKEv2/RFC8784. A
+baseline atual so simula esse handoff.
 
-O roteador Alice usa:
+### 10.5 KeyProvider-B recupera `dec_keys`
 
-```text
-PPK_IDENTITY = SKIP-Alice-Bob-QKD-000001
-```
-
-A chave não trafega pelo IKEv2. Apenas o identificador trafega.
-
-O RFC 8784 define uma extensão para IKEv2 que permite resistência pós-quântica por meio do uso de preshared keys, misturando esse segredo adicional no processo de derivação de chaves. Verificado em: 2026-06-02. ([IETF Datatracker][4])
-
----
-
-## 6.5 Encryptor-B consulta KeyProvider-B
+`Encryptor-B sim` chama:
 
 ```http
-GET https://keyprovider-b:9443/key/SKIP-Alice-Bob-QKD-000001?remoteSystemID=Alice
+GET /key/SKIP-SAE-A-SAE-B-QKD-000001?remoteSystemID=Alice
 ```
 
-O `KeyProvider-B` resolve:
+`KeyProvider-B` resolve:
 
 ```text
-skip_key_id = SKIP-Alice-Bob-QKD-000001
-qkd_key_id  = QKD-000001
+SKIP-SAE-A-SAE-B-QKD-000001 -> QKD-000001
 ```
 
-Então consulta a `KME-B`:
+Depois chama `KME-B` como `SAE-B`:
 
 ```http
-POST http://mock-kme-b:8002/api/v1/keys/get_key_with_key_ids
+POST /api/v1/keys/SAE-A/dec_keys
+content-type: application/json
+x-sae-id: SAE-B
 ```
-
-Payload:
 
 ```json
 {
-  "source_sae_id": "KeyProvider-B",
-  "target_sae_id": "KeyProvider-A",
   "key_IDs": [
-    {
-      "key_ID": "QKD-000001"
-    }
+    { "key_ID": "QKD-000001" }
   ]
 }
 ```
 
-Resposta:
+Resposta ETSI:
 
 ```json
 {
   "keys": [
     {
       "key_ID": "QKD-000001",
-      "key": "6F4A98B2C1E3..."
+      "key": "<base64>"
     }
-  ]
+  ],
+  "key_container_extension": {}
 }
 ```
 
-O `KeyProvider-B` responde ao roteador Bob:
+`KeyProvider-B` converte base64 para hex e responde:
 
 ```json
 {
-  "keyId": "SKIP-Alice-Bob-QKD-000001",
-  "key": "6F4A98B2C1E3..."
+  "keyId": "SKIP-SAE-A-SAE-B-QKD-000001",
+  "key": "<hex>"
 }
 ```
 
----
-
-# 7. Modelo de redes para o lab
-
-## 7.1 Redes Docker
-
-```yaml
-networks:
-  etsi_net:
-    subnet: 172.30.10.0/24
-
-  skip_net:
-    subnet: 172.30.20.0/24
-
-  mgmt_net:
-    subnet: 172.30.30.0/24
-```
-
-Uso:
+Invariante final:
 
 ```text
-etsi_net:
-mock-kme-a
-mock-kme-b
-keyprovider-a
-keyprovider-b
+key_hex_alice == key_hex_bob
+```
 
-skip_net:
+Depois de `dec_keys` bem-sucedido, `KME-B` consome `QKD-000001`. Uma segunda
+recuperacao do mesmo `key_ID` deve falhar.
+
+## 11. Preparacao para roteadores Cisco
+
+Roteadores Cisco nao fazem parte da primeira validacao. Eles sao a fronteira
+de integracao futura depois que SKIP e o fluxo ETSI/KMS estiverem estaveis.
+
+A arquitetura deve, desde o inicio, deixar os Key Providers prontos para serem
+substitutos dos encryptors simulados como fonte SKIP para roteadores:
+
+```text
+                 Rede de gerenciamento SKIP/HTTPS
+
+  +-------------------+                         +-------------------+
+  | KeyProvider-A     |                         | KeyProvider-B     |
+  | SKIP HTTPS        |                         | SKIP HTTPS        |
+  | localSystemID=A   |                         | localSystemID=B   |
+  +---------+---------+                         +---------+---------+
+            ^                                             ^
+            | SKIP                                        | SKIP
+            |                                             |
+  +---------+---------+       IPsec/IKEv2 futuro  +--------+----------+
+  | Cisco Router A    |-------------------------->| Cisco Router B    |
+  | PPK consumer      |                           | PPK consumer      |
+  +-------------------+                           +-------------------+
+```
+
+Regras para essa preparacao:
+
+- O roteador Cisco deve enxergar apenas o endpoint SKIP do Key Provider local.
+- O roteador Cisco nao deve chamar `KME-A` nem `KME-B`.
+- O Key Provider continua sendo o SAE ETSI diante da KME.
+- A chave retornada por SKIP deve ser hexadecimal.
+- O `keyId` deve ser estavel e resolvivel pelo provider remoto.
+- O handoff de `keyId` deve ser compativel com a futura identidade de PPK.
+- HTTPS deve ser tratado como requisito para a fase Cisco.
+- mTLS ETSI e autenticacao SKIP devem ser validadas antes de qualquer claim de
+  seguranca.
+
+Um alvo provavel para laboratorio e Cisco Catalyst 8000V ou uma plataforma
+Cisco que suporte o modo de PPK dinamica via SKIP. A fase Cisco deve confirmar
+versao, licenciamento, comandos, formato de chave, tamanho aceito e semantica
+de renovacao antes de documentar uma configuracao final.
+
+## 12. Criterios de prontidao para Cisco
+
+A integracao com roteadores Cisco so deve comecar depois que estes criterios
+passarem com encryptors simulados:
+
+```text
+1. GET /capabilities funciona nos dois Key Providers.
+2. GET /key?remoteSystemID=Bob retorna keyId e key em hexadecimal.
+3. GET /key/{keyId}?remoteSystemID=Alice retorna a mesma key.
+4. keyId usa SKIP-SAE-A-SAE-B-QKD-000001 para o fluxo A->B.
+5. KeyProvider-A chama somente KME-A.
+6. KeyProvider-B chama somente KME-B.
+7. dec_keys e one-time.
+8. Repetir dec_keys com o mesmo key_ID falha.
+9. key_hex_alice == key_hex_bob.
+10. Nenhum log contem chave completa.
+11. Os providers rodam com endpoints HTTPS para o perfil Cisco.
+12. localSystemID e remoteSystemID estao configurados de forma estavel.
+```
+
+## 13. Runtime de laboratorio
+
+O runtime primario e Docker Compose.
+
+Servicos da baseline:
+
+```text
+kme-a
+kme-b
 keyprovider-a
 keyprovider-b
 encryptor-a-sim
 encryptor-b-sim
-
-mgmt_net:
-test-runner
-observability
 ```
 
-## 7.2 Redes com Cisco 8000V
+Tecnologias:
+
+| Area | Escolha |
+|---|---|
+| KME | Rust `kms/` simulator |
+| Key Providers | Python/FastAPI em fases futuras |
+| Encryptors simulados | Python/FastAPI ou cliente HTTP simples |
+| Provider DB | SQLite separado por provider |
+| KME storage | Storage separado por instancia |
+| Orquestracao | Docker Compose |
+| Testes | `cargo test`, `pytest`, testes e2e |
+
+Redes locais sugeridas:
 
 ```text
-Rede SKIP/MGMT:
-172.16.100.0/24
-
-Router A:
-Gi1 = WAN/IPsec: 10.0.12.1/30
-Gi2 = LAN-A:     192.168.10.1/24
-Gi3 = MGMT:      172.16.100.101/24
-
-Router B:
-Gi1 = WAN/IPsec: 10.0.12.2/30
-Gi2 = LAN-B:     192.168.20.1/24
-Gi3 = MGMT:      172.16.100.102/24
-
-KeyProvider-A:
-172.16.100.10
-
-KeyProvider-B:
-172.16.100.20
+etsi_net: KME-A, KME-B, KeyProvider-A, KeyProvider-B
+skip_net: KeyProvider-A, KeyProvider-B, encryptor-a-sim, encryptor-b-sim
+mgmt_net: test-runner, observability, perfis futuros Cisco
 ```
 
----
+Para a fase Cisco, uma rede de gerenciamento dedicada deve expor apenas SKIP
+HTTPS dos providers para os roteadores. A rede ETSI entre providers e KMEs deve
+permanecer separada.
 
-# 8. Repositório recomendado
+## 14. Modelo de dados esperado
+
+Dominios de identificadores:
+
+| Identificador | Exemplo | Uso |
+|---|---|---|
+| KME ID | `KME-A`, `KME-B` | Topologia ETSI. |
+| SAE ID | `SAE-A`, `SAE-B` | Identidade ETSI. |
+| ETSI `key_ID` | `QKD-000001` | Registro de chave na KME. |
+| SKIP `keyId` | `SKIP-SAE-A-SAE-B-QKD-000001` | Handoff para encryptor/Cisco. |
+| `localSystemID` | `Alice`, `Bob` | Rotulo SKIP local. |
+| `remoteSystemID` | `Bob`, `Alice` | Rotulo SKIP remoto. |
+
+Storage ETSI por KME:
 
 ```text
-qkd-skip-baseline/
-├── README.md
-├── docs/
-│   ├── architecture.md
-│   ├── api-etsi014-mock.md
-│   ├── api-skip.md
-│   ├── threat-model.md
-│   ├── test-plan.md
-│   ├── cisco-integration.md
-│   └── gsd-codex-workflow.md
-├── services/
-│   ├── mock-kme/
-│   │   ├── app/
-│   │   ├── tests/
-│   │   ├── Dockerfile
-│   │   └── pyproject.toml
-│   ├── key-provider/
-│   │   ├── app/
-│   │   ├── tests/
-│   │   ├── Dockerfile
-│   │   └── pyproject.toml
-│   └── encryptor-sim/
-│       ├── app/
-│       ├── tests/
-│       ├── Dockerfile
-│       └── pyproject.toml
-├── infra/
-│   ├── docker-compose.yml
-│   ├── docker-compose.cisco-adjacent.yml
-│   ├── certs/
-│   └── sql/
-├── scripts/
-│   ├── seed_keys.py
-│   ├── run_baseline_flow.py
-│   ├── verify_same_ppk.py
-│   └── reset_lab.sh
-├── tests/
-│   ├── integration/
-│   └── e2e/
-└── .planning/
+key_ID
+master_sae_id
+slave_sae_id
+key bytes
+availability / consumption state
 ```
 
-A pasta `.planning/` será criada e mantida pelo GSD-Core.
+Storage do provider:
 
----
+```text
+skip_key_id
+key_ID
+master_sae_id
+slave_sae_id
+localSystemID
+remoteSystemID
+fingerprint
+lifecycle status
+```
 
-# 9. Como usar o GSD-Core com Codex
+Nunca registrar chave completa em logs. Use fingerprint curto para depuracao.
 
-## 9.1 Instalação
+## 15. Testes obrigatorios
 
-No Ubuntu:
+### 15.1 Verificacao do `kms/`
 
 ```bash
-mkdir -p ~/projects
-cd ~/projects
-
-mkdir qkd-skip-baseline
-cd qkd-skip-baseline
-
-git init
-npm --version
-node --version
-
-npx @opengsd/gsd-core@latest
+cargo fmt --all -- --check
+cargo clippy --workspace --all-targets -- -D warnings
+cargo test --workspace
 ```
 
-Durante a instalação, selecione:
+### 15.2 Testes ETSI/KME
 
 ```text
-Runtime: Codex
-Installation: local project
+test_exact_etsi_paths_and_methods()
+test_status_uses_etsi_json_names()
+test_enc_keys_returns_base64_key_container()
+test_dec_keys_retrieves_by_key_ID()
+test_dec_keys_consumes_successful_key()
+test_unknown_sae_is_rejected()
+test_wrong_master_or_slave_is_rejected()
+test_unsupported_key_size_is_rejected()
 ```
 
-O README atual do GSD-Core informa que o instalador pergunta o runtime, incluindo Codex, e se a instalação será global ou local. Também recomenda usar o instalador para compatibilidade entre runtimes, em vez de copiar arquivos manualmente. Verificado em: 2026-06-02. ([GitHub][1])
-
-Depois:
+### 15.3 Testes SKIP/provider
 
 ```text
-/gsd-new-project
+test_capabilities_returns_local_and_remote_systems()
+test_skip_key_endpoint_returns_keyId_and_hex_key()
+test_skip_keyId_maps_to_etsi_key_ID()
+test_provider_a_calls_only_kme_a()
+test_provider_b_calls_only_kme_b()
+test_providers_use_separate_sqlite_state()
+test_no_full_key_material_in_logs()
 ```
 
----
-
-# 10. Como pensar o projeto dentro do GSD
-
-Use o GSD para separar o trabalho em fases.
-
-## Fase 0: especificação
-
-Objetivo:
+### 15.4 Teste e2e principal
 
 ```text
-Gerar README, arquitetura, contratos de API e plano de testes.
+test_e2e_alice_and_bob_receive_same_ppk_material()
 ```
 
-Artefatos:
+Fluxo esperado:
 
 ```text
-docs/architecture.md
-docs/api-etsi014-mock.md
-docs/api-skip.md
-docs/test-plan.md
-docs/threat-model.md
+1. KeyProvider-A chama KME-A como SAE-A.
+2. KME-A emite enc_keys para SAE-B.
+3. KeyProvider-A entrega keyId e key hex para Alice via SKIP.
+4. Alice entrega keyId para Bob por handoff simulado.
+5. Bob chama KeyProvider-B com keyId.
+6. KeyProvider-B chama KME-B como SAE-B usando dec_keys.
+7. KME-B retorna os mesmos bytes em base64.
+8. KeyProvider-B entrega key hex para Bob.
+9. O teste valida key_hex_alice == key_hex_bob.
+10. O teste valida que repetir dec_keys falha.
 ```
 
-## Fase 1: Mock KME ETSI 014
+### 15.5 Testes de prontidao Cisco
 
-Objetivo:
+Antes de configurar roteadores Cisco reais:
 
 ```text
-Implementar KME-A e KME-B como API simples.
+test_skip_https_profile_is_enabled()
+test_key_is_hex_and_expected_size()
+test_keyId_is_stable_for_remote_lookup()
+test_remote_lookup_works_without_remote_provider_db_sharing()
+test_cisco_profile_does_not_expose_etsi_network_to_router()
+test_provider_logs_use_fingerprints_only()
 ```
 
-Funcionalidades:
+## 16. Metricas do baseline
+
+Metricas uteis desde o inicio:
 
 ```text
-GET /api/v1/status
-POST /api/v1/keys/get_key
-POST /api/v1/keys/get_key_with_key_ids
-```
-
-## Fase 2: Key Provider SKIP
-
-Objetivo:
-
-```text
-Implementar KeyProvider-A e KeyProvider-B.
-```
-
-Funcionalidades:
-
-```text
-GET /capabilities
-GET /key?remoteSystemID=Bob
-GET /key/{keyId}?remoteSystemID=Alice
-GET /entropy
-```
-
-## Fase 3: Encryptor simulado
-
-Objetivo:
-
-```text
-Simular o comportamento mínimo de Alice e Bob.
-```
-
-Validação:
-
-```text
-Alice recebe PPK.
-Alice envia keyId.
-Bob recebe keyId.
-Bob recupera a mesma PPK.
-```
-
-## Fase 4: integração Cisco
-
-Objetivo:
-
-```text
-Substituir encryptor simulado por Cisco Catalyst 8000V.
-```
-
-Validação:
-
-```text
-Cisco Router A consulta SKIP.
-Cisco Router B consulta SKIP.
-IKEv2 usa dynamic PPK.
-IPsec estabelece túnel.
-```
-
----
-
-# 11. Prompt inicial para o Codex com GSD
-
-Use este prompt dentro do projeto:
-
-```text
-Quero desenvolver um ambiente baseline para integrar uma API simulada ETSI GS QKD 014 com Key Providers SKIP e posterior uso com IKEv2/RFC8784.
-
-Requisitos principais:
-
-1. Não usar NetSquid.
-2. Não simular BB84 físico.
-3. Não modelar canal quântico.
-4. Implementar apenas uma API simples que simula o comportamento lógico do ETSI GS QKD 014.
-5. Implementar duas KMEs simuladas: KME-A e KME-B.
-6. Implementar dois Key Providers independentes: KeyProvider-A e KeyProvider-B.
-7. Cada Key Provider deve ter banco local próprio.
-8. O KeyProvider deve atuar como cliente ETSI 014 diante da KME e como servidor SKIP diante do encryptor.
-9. O fluxo deve entregar a mesma PPK para Alice e Bob.
-10. O skip_key_id deve ser derivado de forma determinística a partir do qkd_key_id no baseline.
-11. Implementar primeiro encryptors simulados antes de integrar Cisco.
-12. Usar Python 3.11+, FastAPI, pytest e Docker Compose.
-13. Criar documentação em docs/.
-14. Criar testes unitários, integração e e2e.
-15. Criar scripts para seed de chaves, execução do fluxo e verificação de igualdade das PPKs.
-
-Arquitetura:
-
-ETSI 014 Mock KME → Key Provider → SKIP → Encryptor Simulado → futura integração Cisco/RFC8784.
-
-Por favor, gere primeiro o plano de implementação, estrutura de diretórios, contratos de API, modelo de dados e plano de testes antes de escrever código.
-```
-
----
-
-# 12. Contratos de API para o Codex implementar
-
-## 12.1 Mock ETSI 014
-
-### `GET /api/v1/status`
-
-Resposta:
-
-```json
-{
-  "source_KME_ID": "KME-A",
-  "target_KME_ID": "KME-B",
-  "available_key_count": 100,
-  "max_key_size": 256,
-  "status": "ready"
-}
-```
-
-### `POST /api/v1/keys/get_key`
-
-Request:
-
-```json
-{
-  "source_sae_id": "KeyProvider-A",
-  "target_sae_id": "KeyProvider-B",
-  "size": 256,
-  "number": 1
-}
-```
-
-Response:
-
-```json
-{
-  "keys": [
-    {
-      "key_ID": "QKD-000001",
-      "key": "6F4A98B2C1E3..."
-    }
-  ]
-}
-```
-
-### `POST /api/v1/keys/get_key_with_key_ids`
-
-Request:
-
-```json
-{
-  "source_sae_id": "KeyProvider-B",
-  "target_sae_id": "KeyProvider-A",
-  "key_IDs": [
-    {
-      "key_ID": "QKD-000001"
-    }
-  ]
-}
-```
-
-Response:
-
-```json
-{
-  "keys": [
-    {
-      "key_ID": "QKD-000001",
-      "key": "6F4A98B2C1E3..."
-    }
-  ]
-}
-```
-
----
-
-## 12.2 SKIP API
-
-### `GET /capabilities`
-
-Response:
-
-```json
-{
-  "entropy": true,
-  "key": true,
-  "algorithm": "ETSI014-MOCK-QKD",
-  "localSystemID": "Alice",
-  "remoteSystemID": [
-    "Bob"
-  ]
-}
-```
-
-### `GET /key?remoteSystemID=Bob`
-
-Response:
-
-```json
-{
-  "keyId": "SKIP-Alice-Bob-QKD-000001",
-  "key": "6F4A98B2C1E3..."
-}
-```
-
-### `GET /key/{keyId}?remoteSystemID=Alice`
-
-Response:
-
-```json
-{
-  "keyId": "SKIP-Alice-Bob-QKD-000001",
-  "key": "6F4A98B2C1E3..."
-}
-```
-
-### `GET /entropy`
-
-Response:
-
-```json
-{
-  "entropy": "AABBCCDDEEFF001122..."
-}
-```
-
----
-
-# 13. Modelo de dados
-
-## 13.1 Tabela `qkd_keys`
-
-```sql
-CREATE TABLE qkd_keys (
-    qkd_key_id        TEXT PRIMARY KEY,
-    key_value         TEXT NOT NULL,
-    source_kme_id     TEXT NOT NULL,
-    target_kme_id     TEXT NOT NULL,
-    source_sae_id     TEXT,
-    target_sae_id     TEXT,
-    key_size_bits     INTEGER NOT NULL,
-    status            TEXT NOT NULL,
-    created_at        TIMESTAMP NOT NULL,
-    delivered_at      TIMESTAMP,
-    used_at           TIMESTAMP,
-    expires_at        TIMESTAMP
-);
-```
-
-## 13.2 Tabela `skip_keys`
-
-```sql
-CREATE TABLE skip_keys (
-    skip_key_id       TEXT PRIMARY KEY,
-    qkd_key_id        TEXT NOT NULL,
-    key_value         TEXT NOT NULL,
-    local_system_id   TEXT NOT NULL,
-    remote_system_id  TEXT NOT NULL,
-    key_size_bits     INTEGER NOT NULL,
-    source            TEXT NOT NULL,
-    status            TEXT NOT NULL,
-    created_at        TIMESTAMP NOT NULL,
-    delivered_at      TIMESTAMP,
-    used_at           TIMESTAMP,
-    expires_at        TIMESTAMP
-);
-```
-
----
-
-# 14. Casos de teste obrigatórios
-
-## 14.1 Testes unitários
-
-```text
-test_generate_qkd_key_id()
-test_generate_skip_key_id_from_qkd_key_id()
-test_key_is_hex_encoded()
-test_key_size_is_256_bits()
-test_status_transition_available_to_delivered()
-test_expired_key_is_rejected()
-```
-
-## 14.2 Testes de integração
-
-```text
-test_kp_a_gets_key_from_kme_a()
-test_kp_b_gets_same_key_from_kme_b_by_key_id()
-test_skip_key_id_maps_to_qkd_key_id()
-test_kp_a_skip_key_endpoint_returns_key_and_keyid()
-test_kp_b_skip_keyid_endpoint_returns_same_key()
-```
-
-## 14.3 Teste e2e principal
-
-```text
-test_e2e_alice_and_bob_receive_same_ppk()
-```
-
-Fluxo:
-
-```text
-1. seed-service cria QKD-000001.
-2. KME-A e KME-B recebem a mesma chave.
-3. KeyProvider-A coleta chave de KME-A.
-4. Encryptor-A consulta KeyProvider-A.
-5. Encryptor-A recebe keyId e key.
-6. Encryptor-B consulta KeyProvider-B com keyId.
-7. KeyProvider-B resolve qkd_key_id.
-8. KeyProvider-B coleta chave de KME-B.
-9. Encryptor-B recebe key.
-10. assert key_alice == key_bob.
-```
-
----
-
-# 15. Integração futura com Cisco
-
-A documentação Cisco descreve dynamic PPKs importadas via SKIP como uma alternativa à configuração manual de PPKs, com benefícios de provisionamento automático, renovação e melhor entropia. Verificado em: 2026-06-02. ([Cisco][2])
-
-A configuração Cisco deve vir apenas depois que os seguintes testes passarem:
-
-```text
-1. GET /capabilities funciona.
-2. GET /key?remoteSystemID=Bob retorna keyId e key em hexadecimal.
-3. GET /key/{keyId}?remoteSystemID=Alice retorna a mesma key.
-4. A chave possui tamanho compatível.
-5. O keyId é estável e resolvível nos dois lados.
-6. O servidor SKIP usa HTTPS.
-```
-
-Ponto crítico:
-
-```text
-Cisco espera chave em formato hexadecimal.
-```
-
-Isso já deve ser tratado desde o início no Key Provider.
-
----
-
-# 16. Métricas do baseline
-
-Colete desde o início:
-
-```text
-kme_get_key_latency_ms
-kme_get_key_with_id_latency_ms
+etsi_status_latency_ms
+etsi_enc_keys_latency_ms
+etsi_dec_keys_latency_ms
 skip_get_key_latency_ms
 skip_get_key_by_id_latency_ms
 ppk_match_success_count
 ppk_mismatch_count
-expired_key_rejection_count
-used_key_reuse_attempt_count
+dec_keys_reuse_rejection_count
+unknown_sae_rejection_count
+wrong_ownership_rejection_count
 ```
 
-Essas métricas depois servem para artigo, gráfico e comparação entre:
+Essas metricas podem apoiar comparacoes futuras entre:
 
 ```text
-PPK estática
-PPK via ETSI014 mock
-PPK via ETSI014 mock + expansão HKDF/RanA
+PPK estatica
+PPK via ETSI 014 subset + SKIP
+PPK via KME experimental com fake key-source deterministica
 PPK via QKD real
 ```
 
----
+## 17. Ordem recomendada de implementacao
 
-# 17. Ordem recomendada de implementação
+1. Manter `baseline.md`, arquitetura e contratos alinhados aos ADRs do `kms/`.
+2. Evoluir `kms/` para o subconjunto ETSI 014, se houver gaps de runtime.
+3. Implementar KeyProvider-A e KeyProvider-B como clientes ETSI e servidores
+   SKIP.
+4. Garantir SQLite separado por provider.
+5. Implementar encryptors simulados.
+6. Implementar testes unitarios, router tests, integracao e e2e.
+7. Validar o fluxo `key_hex_alice == key_hex_bob`.
+8. Adicionar perfil HTTPS/SKIP para preparacao Cisco.
+9. Documentar a configuracao Cisco somente depois de confirmar plataforma,
+   versao, licenciamento e comportamento operacional.
+10. Integrar roteadores Cisco reais em uma fase separada.
 
-```text
-1. Criar README.md e docs/architecture.md.
-2. Criar contratos de API.
-3. Implementar mock-kme.
-4. Implementar seed-service.
-5. Implementar key-provider.
-6. Implementar encryptor-sim.
-7. Implementar testes unitários.
-8. Implementar testes de integração.
-9. Implementar teste e2e.
-10. Adicionar Docker Compose.
-11. Adicionar HTTPS local.
-12. Validar formato SKIP.
-13. Documentar futura integração Cisco.
-14. Integrar Cisco Catalyst 8000V.
-```
+## 18. Resultado esperado
 
----
-
-# 18. Arquitetura mínima para o primeiro commit
-
-O primeiro commit deve conter apenas:
+Ao final da baseline, o resultado esperado e:
 
 ```text
-README.md
-docs/architecture.md
-docs/api-etsi014-mock.md
-docs/api-skip.md
-docs/test-plan.md
-docker-compose.yml inicial
-estrutura vazia de services/
-```
-
-Mensagem de commit sugerida:
-
-```bash
-git commit -m "docs: define ETSI014-SKIP baseline architecture"
-```
-
----
-
-# 19. Resultado esperado do ambiente
-
-Ao final do baseline, você deve conseguir executar:
-
-```bash
-docker compose up --build
-python scripts/seed_keys.py
-python scripts/run_baseline_flow.py
-python scripts/verify_same_ppk.py
-pytest
-```
-
-E obter algo como:
-
-```text
-[OK] KME-A possui QKD-000001
-[OK] KME-B possui QKD-000001
-[OK] KeyProvider-A entregou SKIP-Alice-Bob-QKD-000001
-[OK] KeyProvider-B resolveu SKIP-Alice-Bob-QKD-000001
+[OK] KME-A e uma instancia do kms/
+[OK] KME-B e uma instancia do kms/
+[OK] KeyProvider-A atua como SAE-A e chama somente KME-A
+[OK] KeyProvider-B atua como SAE-B e chama somente KME-B
+[OK] ETSI enc_keys retorna key_ID e key em base64
+[OK] SKIP retorna keyId e key em hexadecimal
+[OK] KeyProvider-B resolve keyId para key_ID
+[OK] ETSI dec_keys e one-time
 [OK] PPK Alice == PPK Bob
-[OK] Baseline ETSI014 → SKIP validada
+[OK] Baseline pronta para uma fase Cisco-adjacent
 ```
 
----
-
-# 20. Hipótese técnica do teste
-
-A hipótese que você deve colocar no projeto é:
+## 19. Prompt resumido para futuras sessoes
 
 ```text
-Se uma API compatível com o comportamento lógico do ETSI GS QKD 014
-disponibiliza chaves simétricas sincronizadas entre Alice e Bob,
-então dois Key Providers independentes podem coletar essas chaves,
-armazená-las localmente, expô-las via SKIP e entregar a mesma PPK
-para uso posterior em IKEv2/RFC8784.
-```
+Quero desenvolver um baseline local que integra duas instancias do kms/
+como KMEs ETSI GS QKD 014, dois Key Providers independentes como SAE-A e
+SAE-B, e dois encryptors simulados via SKIP. O objetivo e provar que Alice
+e Bob recebem o mesmo material de PPK, com ETSI key em base64, SKIP key em
+hexadecimal, keyId deterministico no formato
+SKIP-{master_SAE_ID}-{slave_SAE_ID}-{key_ID}, dec_keys one-time e sem banco
+central entre providers.
 
-Essa hipótese separa corretamente:
-
-```text
-QKD físico: fora do escopo inicial.
-ETSI 014 lógico: dentro do escopo.
-SKIP: dentro do escopo.
-RFC 8784: alvo de integração.
-Cisco Router: validação posterior.
+Nao implementar Cisco real, IKEv2 ou IPsec nesta baseline. Preparar a
+arquitetura para uma fase futura com roteadores Cisco como consumidores SKIP,
+mantendo Cisco fora da rede ETSI e validando primeiro todos os criterios de
+prontidao com encryptors simulados.
 ```
