@@ -65,6 +65,14 @@ docker compose -f infra/docker-compose.yml config
 
 Phase 0 does not require containers to start.
 
+## Risk Coverage
+
+The Phase 0 checks must keep these plan and security risks visible:
+
+- Incomplete SKIP conformance against draft-singh-skip-00.
+- Accidental centralization of Key Provider state.
+- Confusing the ETSI 014 mock with full ETSI GS QKD 014 conformance.
+
 ## KMS Simulator Checks
 
 The `kms/` simulator is part of the official versioned baseline. It is
