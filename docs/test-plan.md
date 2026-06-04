@@ -7,6 +7,7 @@ Run these source checks after documentation/scaffolding changes:
 ```bash
 test -f README.md
 test -f docs/architecture.md
+test -f docs/etsi014-alignment.md
 test -f docs/api-etsi014-mock.md
 test -f docs/api-skip.md
 test -f docs/data-model.md
@@ -14,6 +15,7 @@ test -f docs/test-plan.md
 test -f docs/security-assumptions.md
 test -f infra/docker-compose.yml
 rg -n "KME-A|KME-B|KeyProvider-A|KeyProvider-B" README.md docs infra/docker-compose.yml
+rg -n "master_SAE_ID|slave_SAE_ID|one-time|dec_keys|key handoff|key-source|simulated synchronization" docs/etsi014-alignment.md
 rg -n "status|enc_keys|dec_keys" docs/api-etsi014-mock.md
 rg -n "source_KME_ID|target_KME_ID|master_SAE_ID|slave_SAE_ID|key_ID|key_IDs" docs/api-etsi014-mock.md docs/data-model.md
 rg -n "base64.*bytes.*hex|ETSI base64 -> bytes -> SKIP hex" docs

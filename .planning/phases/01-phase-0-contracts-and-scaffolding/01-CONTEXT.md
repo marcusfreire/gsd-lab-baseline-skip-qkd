@@ -39,7 +39,7 @@ amplification, or optical-layer QKD behavior.
 - **D-02:** `baseline.md`, if present, is historical context only after the
   Phase 0 documentation baseline exists.
 - **D-03:** The committed rebaseline docs supersede the older Phase 1 context
-  choices that described a single KME mock service-source framing and
+  choices that described a one-KME simulator service-source framing and
   namespace-secret SKIP key ID derivation.
 
 ### KME Simulator Topology
@@ -163,6 +163,8 @@ amplification, or optical-layer QKD behavior.
   current scope boundary.
 - `docs/architecture.md` - Architecture authority for the two-KME topology and
   SAE/KME policy.
+- `docs/etsi014-alignment.md` - Consensus gate for ETSI 014 alignment,
+  component roles, ownership, lifecycle, and simulated synchronization.
 - `docs/api-etsi014-mock.md` - ETSI 014 mock API contract.
 - `docs/api-skip.md` - SKIP API contract against `draft-singh-skip-00`.
 - `docs/data-model.md` - Identifier, key material, lifecycle, and mapping rules.

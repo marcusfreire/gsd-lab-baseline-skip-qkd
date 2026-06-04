@@ -16,6 +16,10 @@ This architecture is based on:
 The `kms/` Rust project is the KME simulator for this baseline. It is not
 production KMS software.
 
+The formal ETSI 014 alignment gate is documented in
+`docs/etsi014-alignment.md`. It records the consensus required before endpoint
+or data-model implementation proceeds.
+
 ## Scope
 
 The baseline models application-facing ETSI GS QKD 014 key delivery and SKIP

@@ -115,6 +115,7 @@ the same `key_ID` must fail.
 ## Documentation
 
 - [Architecture](docs/architecture.md)
+- [ETSI 014 Alignment](docs/etsi014-alignment.md)
 - [ETSI 014 Mock API](docs/api-etsi014-mock.md)
 - [SKIP API](docs/api-skip.md)
 - [Data Model](docs/data-model.md)
