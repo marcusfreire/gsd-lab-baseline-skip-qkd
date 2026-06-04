@@ -3,9 +3,9 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: docs/etsi014-alignment.md added; Phase 1 plans remain stale and require replanning before execution
-last_updated: "2026-06-04T02:12:03.026Z"
-last_activity: "2026-06-04 - Completed quick task 260603-vfo: Execute reavaliar.md by adding docs/etsi014-alignment.md consensus gate."
+stopped_at: Phase 1 replanned with corrected two-KME ETSI/SKIP baseline; ready to execute
+last_updated: "2026-06-04T02:12:44.000Z"
+last_activity: "2026-06-04 - Replanned Phase 1 with corrected two-KME ETSI/SKIP baseline."
 progress:
   total_phases: 1
   completed_phases: 0
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-06-02)
 Phase: 1 of 1 (Phase 0 Contracts and Scaffolding)
 Plan: 0 of 4 in current phase
 Status: Ready to execute
-Last activity: 2026-06-04 - Completed quick task 260603-vfo: Execute reavaliar.md by adding docs/etsi014-alignment.md consensus gate.
+Last activity: 2026-06-04 - Replanned Phase 1 with corrected two-KME ETSI/SKIP baseline.
 
 Progress: ░░░░░░░░░░ 0%
 
