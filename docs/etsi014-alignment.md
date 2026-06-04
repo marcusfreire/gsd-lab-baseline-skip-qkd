@@ -113,6 +113,11 @@ The simulated encryptors are SKIP clients, not ETSI SAEs. They see
 bridge those SKIP concepts to ETSI `master_SAE_ID`, `slave_SAE_ID`, `key_ID`,
 and base64 `key`.
 
+The SAE/KME topology is an authorization policy: a caller is not authorized
+merely because it can name a peer SAE or a `key_ID`; it must match the
+configured caller identity, local KME, master/slave relationship, and key
+ownership metadata.
+
 ## ETSI 014 Supported Surface
 
 The KME simulator side must align with ADR 0002 for the supported subset:
