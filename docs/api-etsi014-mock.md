@@ -187,3 +187,7 @@ At minimum, tests must cover:
 This is a supported subset for local experiments. It does not claim full ETSI
 conformance, production KMS readiness, trusted-node routing, physical QKD,
 cluster coordination, HSM integration, or operational security hardening.
+
+The supported subset is logical key delivery only. It explicitly excludes
+quantum channel modeling, NetSquid, BB84, QBER, reconciliation, privacy
+amplification, and any production ETSI conformance claim.
