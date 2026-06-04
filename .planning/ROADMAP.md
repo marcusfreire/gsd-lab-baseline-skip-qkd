@@ -31,7 +31,7 @@ Decimal phases appear between their surrounding integers in numeric order.
   4. User can verify from the docs and Compose skeleton that KeyProvider-A and KeyProvider-B are independent instances with separate planned SQLite state and no central provider database.
   5. User can see that real Cisco encryptors and real IKEv2/RFC8784 integration are future work, while simulated encryptors are the first planned consumers.
 
-**Plans:** 2/4 plans executed
+**Plans:** 3/4 plans executed
 Plans:
 **Wave 1**
 
@@ -40,7 +40,7 @@ Plans:
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
-- [ ] 01-03: Define test plan, risks, security assumptions, and acceptance criteria.
+- [x] 01-03: Define test plan, risks, security assumptions, and acceptance criteria.
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
@@ -53,7 +53,7 @@ Phases execute in numeric order: 1
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Phase 0 Contracts and Scaffolding | 2/4 | In Progress|  |
+| 1. Phase 0 Contracts and Scaffolding | 3/4 | In Progress|  |
 
 ## Future Milestone Candidates
 

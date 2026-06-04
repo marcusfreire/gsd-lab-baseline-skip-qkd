@@ -14,8 +14,8 @@ Requirements for the first project release: Phase 0 technical plan, documentatio
 - [x] **DOC-03**: User can read `docs/api-etsi014-mock.md` to understand the `kms/`-backed minimal logical ETSI GS QKD 014 profile, including status, initiator key request, responder key retrieval by key IDs, request/response examples, and documented deviations from full ETSI 014.
 - [x] **DOC-04**: User can read `docs/api-skip.md` to see the SKIP API contract pinned to `draft-singh-skip-00`, including `GET /capabilities`, `GET /key`, `GET /key/{keyId}`, `GET /entropy`, query parameters, JSON fields, and status codes.
 - [x] **DOC-05**: User can read `docs/data-model.md` to distinguish ETSI `key_ID`, SKIP `keyId` / `skip_key_id`, key material formats, provider state, and deterministic textual ID mapping.
-- [ ] **DOC-06**: User can read `docs/test-plan.md` to see planned manual, contract, and end-to-end test scenarios for Phase 0 and later implementation phases.
-- [ ] **DOC-07**: User can read `docs/security-assumptions.md` to understand local-only assumptions, simulated key limits, TLS/authentication deferrals, logging risks, entropy expectations, and non-production claims.
+- [x] **DOC-06**: User can read `docs/test-plan.md` to see planned manual, contract, and end-to-end test scenarios for Phase 0 and later implementation phases.
+- [x] **DOC-07**: User can read `docs/security-assumptions.md` to understand local-only assumptions, simulated key limits, TLS/authentication deferrals, logging risks, entropy expectations, and non-production claims.
 
 ### Technical Plan
 
@@ -85,8 +85,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | DOC-03 | Phase 1 | Complete |
 | DOC-04 | Phase 1 | Complete |
 | DOC-05 | Phase 1 | Complete |
-| DOC-06 | Phase 1 | Pending |
-| DOC-07 | Phase 1 | Pending |
+| DOC-06 | Phase 1 | Complete |
+| DOC-07 | Phase 1 | Complete |
 | PLAN-01 | Phase 1 | Complete |
 | PLAN-02 | Phase 1 | Complete |
 | PLAN-03 | Phase 1 | Complete |
