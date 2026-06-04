@@ -34,7 +34,7 @@ Requirements for the first project release: Phase 0 technical plan, documentatio
 ### Scaffolding
 
 - [x] **SCAF-01**: Repository contains `infra/docker-compose.yml` declaring initial services for `kme-a`, `kme-b`, KeyProvider-A, KeyProvider-B, and simulated encryptor components, with KME services referencing `kms/`.
-- [x] **SCAF-02**: Repository contains service directory skeletons for KME mock, configurable Key Provider implementation, and simulated encryptor implementation.
+- [x] **SCAF-02**: Repository contains `kms/` as the KME simulator baseline and service directory skeletons for configurable Key Provider and simulated encryptor implementation, without creating `services/kme-mock`.
 - [x] **SCAF-03**: KeyProvider-A and KeyProvider-B scaffolding use separate configuration and separate planned SQLite storage paths or volumes.
 - [x] **SCAF-04**: Phase 0 scaffolding avoids full service logic while making the intended future implementation locations clear.
 
