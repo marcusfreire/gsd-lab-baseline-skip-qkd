@@ -8,6 +8,7 @@ services:
       - echo "Phase 0 scaffold for KME-A ETSI 014 mTLS simulator from /kms"
     environment:
       KME_ID: KME-A
+      KME_SOURCE: ../kms
       USE_MTLS: "true"
       SAE_ID: SAE-A
       PEER_SAE_ID: SAE-B
@@ -29,6 +30,7 @@ services:
       - echo "Phase 0 scaffold for KME-B ETSI 014 mTLS simulator from /kms"
     environment:
       KME_ID: KME-B
+      KME_SOURCE: ../kms
       USE_MTLS: "true"
       SAE_ID: SAE-B
       PEER_SAE_ID: SAE-A
