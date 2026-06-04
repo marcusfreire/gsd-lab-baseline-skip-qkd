@@ -4,7 +4,7 @@ milestone: v1.0
 milestone_name: milestone
 status: complete
 stopped_at: Completed 01-04-PLAN.md
-last_updated: "2026-06-04T13:33:02.756Z"
+last_updated: "2026-06-04T13:46:31.952Z"
 last_activity: 2026-06-04
 progress:
   total_phases: 1
@@ -84,6 +84,7 @@ None yet.
 | 260603-vfo | Execute reavaliar.md by adding docs/etsi014-alignment.md consensus gate | 2026-06-04 | 4ad8b45 | [260603-vfo-execute-reavaliar-md](./quick/260603-vfo-execute-reavaliar-md/) |
 | 260603-woe | Oficializar kms como parte do baseline | 2026-06-04 | 8c0479c | [260603-woe-oficializar-kms-como-parte-do-baseline](./quick/260603-woe-oficializar-kms-como-parte-do-baseline/) |
 | 260604-ehq | Revisar baseline.md conforme ADRs 0001-0005 do KMS e alinhar ao subconjunto ETSI GS QKD 014 adotado pelo kms | 2026-06-04 | 4a37040 | [260604-ehq-revisar-baseline-md-conforme-adrs-0001-0](./quick/260604-ehq-revisar-baseline-md-conforme-adrs-0001-0/) |
+| 260604-etr | Revisar objetivo.md para alinhar arquitetura, integracao KMS e preparacao para roteadores Cisco | 2026-06-04 | 17ac07c | [260604-etr-revisar-objetivo-md-para-alinhar-arquite](./quick/260604-etr-revisar-objetivo-md-para-alinhar-arquite/) |
 
 ## Deferred Items
 
