@@ -3,6 +3,14 @@
 > **Audit trail only.** Do not use as input to planning, research, or execution agents.
 > Decisions are captured in CONTEXT.md - this log preserves the alternatives considered.
 
+> **Supersession note, 2026-06-04:** The original 2026-06-02 choices below were
+> re-evaluated after reading `reavaliar.md`, `kms/README.md`, ADRs 0001-0005,
+> and `AES_VPN_Prototypes.md`. The current planning authority is
+> `01-CONTEXT.md`, which now uses `KME-A`/`KME-B`, the `kms/` simulator,
+> one-time `dec_keys`, ETSI public JSON names, and textual SKIP key IDs such as
+> `SKIP-SAE-A-SAE-B-QKD-000001`. In particular, the old HMAC namespace-secret
+> key ID decision and `services/kme-mock/` framing are superseded.
+
 **Date:** 2026-06-02
 **Phase:** 1-Phase 0 Contracts and Scaffolding
 **Areas discussed:** Autoridade dos documentos, Formato dos contratos ETSI/SKIP, Estrutura dos servicos, Regra exata de keyId, Criterio de aceite da Fase 0
@@ -89,3 +97,39 @@
 - Real Cisco/hardware encryptor integration.
 - Real IKEv2/RFC8784 integration.
 - Full ETSI GS QKD 014 conformance.
+
+---
+
+## Reavaliacao da arquitetura
+
+**Date:** 2026-06-04
+**Trigger:** User selected option `1` to update Phase 1 context after the
+architecture rebaseline.
+
+**Source material:**
+
+- `reavaliar.md`
+- `README.md`
+- `docs/architecture.md`
+- `docs/api-etsi014-mock.md`
+- `docs/api-skip.md`
+- `docs/data-model.md`
+- `docs/test-plan.md`
+- `docs/security-assumptions.md`
+- `infra/docker-compose.yml`
+- `kms/README.md`
+- `kms/adrs/0001-experimental-key-management-simulator.md`
+- `kms/adrs/0002-etsi-014-protocol-fidelity.md`
+- `kms/adrs/0003-sae-identity-and-topology-policy.md`
+- `kms/adrs/0004-key-source-and-etsi-storage-lifecycle.md`
+- `kms/adrs/0005-testing-and-fidelity-guidelines.md`
+- `AES_VPN_Prototypes.md`
+
+**Resolution:** No new gray-area question was required. The user-provided
+rebaseline already fixed the architecture choices: two KME simulator instances,
+independent Key Providers, deterministic textual SKIP `keyId`, exact ETSI JSON
+names, one-time `dec_keys`, local KME-only provider access, and no quantum
+channel simulation.
+
+**Planning impact:** Existing Phase 1 plans created before this rebaseline are
+stale and must be regenerated before execution.
