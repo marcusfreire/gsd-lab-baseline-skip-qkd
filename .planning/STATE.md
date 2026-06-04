@@ -4,8 +4,8 @@ milestone: v1.0
 milestone_name: milestone
 status: executing
 stopped_at: Phase 1 context gathered
-last_updated: "2026-06-03T02:49:25.329Z"
-last_activity: 2026-06-02 - Project initialized; requirements researched and mapped to initial roadmap.
+last_updated: "2026-06-04T01:20:56.443Z"
+last_activity: 2026-06-04 - Completed quick task 260603-uty: Reavaliar arquitetura qkd-skip-baseline conforme reavaliar.md ADRs 0001-0005 e kms README.
 progress:
   total_phases: 1
   completed_phases: 0
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-06-02)
 Phase: 1 of 1 (Phase 0 Contracts and Scaffolding)
 Plan: 0 of 4 in current phase
 Status: Ready to execute
-Last activity: 2026-06-02 - Project initialized; requirements researched and mapped to initial roadmap.
+Last activity: 2026-06-04 - Completed quick task 260603-uty: Reavaliar arquitetura qkd-skip-baseline conforme reavaliar.md ADRs 0001-0005 e kms README.
 
 Progress: ░░░░░░░░░░ 0%
 
@@ -71,6 +71,12 @@ None yet.
 ### Blockers/Concerns
 
 None yet.
+
+### Quick Tasks Completed
+
+| # | Description | Date | Commit | Directory |
+|---|-------------|------|--------|-----------|
+| 260603-uty | Reavaliar arquitetura qkd-skip-baseline conforme reavaliar.md ADRs 0001-0005 e kms README | 2026-06-04 | 0c6c5ca | [260603-uty-reavaliar-arquitetura-qkd-skip-baseline-](./quick/260603-uty-reavaliar-arquitetura-qkd-skip-baseline-/) |
 
 ## Deferred Items
 
