@@ -35,9 +35,11 @@ toward `KME-B`.
 | `remoteSystemID` | SKIP remote system label, e.g. `Bob` or `Alice`. |
 | `keyId` | Deterministic SKIP identifier, e.g. `SKIP-SAE-A-SAE-B-QKD-000001`. |
 | `key` | Hexadecimal string derived from ETSI base64 key material. |
+| `entropy` | Entropy response value for the SKIP entropy endpoint. |
 | `size` | Requested key size in bits; baseline uses 256. |
 
 ETSI `key` values are base64. SKIP `key` values are hexadecimal.
+The default key material size for this baseline is 256 bits.
 
 ## Outbound Key Request
 
@@ -139,6 +141,14 @@ The SKIP service should use:
 - `404` when a `keyId` is unknown or unavailable;
 - `405` for unsupported HTTP methods;
 - `500` only for unexpected server failures.
+
+## Entropy Behavior
+
+`GET /entropy` and `GET /entropy?minentropy={bits}` are documented as SKIP
+contract endpoints for future Key Provider services. Phase 0 records the route
+and JSON field contract only; implementation must not claim production entropy.
+Responses use an `entropy` field and must honor `minentropy` only within the
+limits documented by the future implementation.
 
 ## Phase 0 Limits
 
