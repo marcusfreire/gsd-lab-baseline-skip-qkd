@@ -8,7 +8,11 @@
 | SAE ID | ETSI caller/peer identity | `SAE-A`, `SAE-B` | Used for mTLS Common Name or local `x-sae-id`. |
 | ETSI `key_ID` | ETSI key lifecycle | `QKD-000001` | Public ETSI JSON name; maps to stored KME key record. |
 | SKIP `keyId` | SKIP handoff | `SKIP-SAE-A-SAE-B-QKD-000001` | Deterministic identifier exposed to encryptors. |
-| SKIP system ID | SKIP peer label | `Alice`, `Bob` | `remoteSystemID` values used by simulated encryptors. |
+| Internal `skip_key_id` | Provider mapping | `SKIP-SAE-A-SAE-B-QKD-000001` | Stored textual mapping value for SKIP `keyId`. |
+| `master_SAE_ID` | ETSI ownership | `SAE-A` | Master SAE that requested `enc_keys`. |
+| `slave_SAE_ID` | ETSI ownership | `SAE-B` | Slave SAE authorized for `dec_keys`. |
+| `localSystemID` | SKIP peer label | `Alice`, `Bob` | Local encryptor-facing system identifier. |
+| `remoteSystemID` | SKIP peer label | `Bob`, `Alice` | Remote encryptor-facing system identifier. |
 
 Do not collapse these identifiers into one untyped field.
 
@@ -16,9 +20,10 @@ Do not collapse these identifiers into one untyped field.
 
 | Boundary | Field | Encoding |
 |---|---|---|
-| ETSI 014 | `key` | Base64 string. |
+| ETSI 014 | ETSI `key` | Base64 string. |
 | Key Provider internal | key bytes | Raw bytes after base64 decode. |
-| SKIP | `key` | Hexadecimal string. |
+| SKIP | SKIP `key` | Hexadecimal string. |
+| Logs and audit events | key fingerprint | Truncated hash fingerprint; never full key material. |
 
 Required conversion:
 
@@ -63,12 +68,13 @@ They may share a deterministic seed/fake key-source policy so the same
 
 ## Provider State
 
-Key Provider state is per provider:
+Key Provider state is per provider and persists in separate SQLite databases:
 
-- `KeyProvider-A` owns its local provider DB.
-- `KeyProvider-B` owns its local provider DB.
+- `KeyProvider-A` owns its local SQLite provider DB.
+- `KeyProvider-B` owns its local SQLite provider DB.
 
-There is no central shared database between Key Providers.
+There is no central shared database between Key Providers and no central
+provider database.
 
 Future provider tables may include:
 
@@ -94,6 +100,7 @@ The required mapping is:
 
 ```text
 skip_key_id = "SKIP-" + master_SAE_ID + "-" + slave_SAE_ID + "-" + key_ID
+skip_key_id = SKIP-{master_SAE_ID}-{slave_SAE_ID}-{key_ID}
 ```
 
 Example:
