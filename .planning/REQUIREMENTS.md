@@ -99,13 +99,26 @@ Which phases cover which requirements. Updated during roadmap creation.
 | SCAF-02 | Phase 1 | Complete |
 | SCAF-03 | Phase 1 | Complete |
 | SCAF-04 | Phase 1 | Complete |
+| KME-01 | Future v2 | Deferred |
+| KME-02 | Future v2 | Deferred |
+| KP-01 | Future v2 | Deferred |
+| KP-02 | Future v2 | Deferred |
+| KP-03 | Future v2 | Deferred |
+| KP-04 | Future v2 | Deferred |
+| ENC-01 | Future v2 | Deferred |
+| ENC-02 | Future v2 | Deferred |
+| TEST-01 | Future v2 | Deferred |
+| IKE-01 | Future v2 | Deferred |
+| TLS-01 | Future v2 | Deferred |
+| CISCO-01 | Future v2 | Deferred |
 
 **Coverage:**
 
 - v1 requirements: 19 total
 - Mapped to phases: 19
+- Deferred v2 requirements tracked: 12
 - Unmapped: 0
 
 ---
 *Requirements defined: 2026-06-02*
-*Last updated: 2026-06-02 after initialization*
+*Last updated: 2026-06-04 after Phase 1 completion*
