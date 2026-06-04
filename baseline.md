@@ -1,5 +1,9 @@
 # Baseline: Integração ETSI GS QKD 014 Simulado + SKIP + RFC 8784
 
+> Historical context only. This document is retained as an older Portuguese
+> baseline note. Current normative project authority lives in `README.md` and
+> `docs/architecture.md`.
+
 ## 1. Visão geral
 
 Este projeto define uma arquitetura baseline para integrar chaves provenientes de uma infraestrutura QKD simulada com mecanismos clássicos de proteção de rede, em especial IPsec/IKEv2 com Post-quantum Preshared Key (PPK), conforme o RFC 8784.

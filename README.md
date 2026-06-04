@@ -64,9 +64,10 @@ The baseline uses two KME instances:
 | `Encryptor-A sim` | First SKIP consumer; asks `KeyProvider-A` for an outbound PPK. |
 | `Encryptor-B sim` | First SKIP receiver; asks `KeyProvider-B` for the key identified by the handoff `keyId`. |
 
-Each Key Provider has its own local state. There is no shared Key Provider
-database. KME-A and KME-B may share a deterministic seed/fake key-source policy
-so the same ETSI `key_ID` resolves to identical key bytes on both sides.
+Each Key Provider has its own local SQLite state. There is no central provider
+database and no shared Key Provider database. KME-A and KME-B may share a
+deterministic seed/fake key-source policy so the same ETSI `key_ID` resolves to
+identical key bytes on both sides.
 
 ## End-to-End Flow
 

@@ -136,12 +136,12 @@ Repeating `dec_keys` with the same `key_ID` must fail.
 
 ## Persistence Boundary
 
-There is no central database shared between Key Providers.
+There is no central provider database shared between Key Providers.
 
 - `KME-A` storage belongs to `KME-A`.
 - `KME-B` storage belongs to `KME-B`.
-- `KeyProvider-A` state belongs to `KeyProvider-A`.
-- `KeyProvider-B` state belongs to `KeyProvider-B`.
+- `KeyProvider-A` SQLite state belongs to `KeyProvider-A`.
+- `KeyProvider-B` SQLite state belongs to `KeyProvider-B`.
 
 The only cross-side synchronization in the baseline is the deterministic
 seed/fake key-source policy that makes the two KME instances produce or load
