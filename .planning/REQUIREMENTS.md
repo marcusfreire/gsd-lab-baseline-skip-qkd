@@ -11,9 +11,9 @@ Requirements for the first project release: Phase 0 technical plan, documentatio
 
 - [x] **DOC-01**: User can read `README.md` to understand the baseline purpose, local topology, Phase 0 scope, and what is intentionally not implemented yet.
 - [x] **DOC-02**: User can read `docs/architecture.md` to identify `kms/` as the official KME simulator baseline for KME-A and KME-B, plus KeyProvider-A, KeyProvider-B, simulated encryptors, persistence boundaries, and future IKEv2/RFC8784 boundary.
-- [ ] **DOC-03**: User can read `docs/api-etsi014-mock.md` to understand the `kms/`-backed minimal logical ETSI GS QKD 014 profile, including status, initiator key request, responder key retrieval by key IDs, request/response examples, and documented deviations from full ETSI 014.
-- [ ] **DOC-04**: User can read `docs/api-skip.md` to see the SKIP API contract pinned to `draft-singh-skip-00`, including `GET /capabilities`, `GET /key`, `GET /key/{keyId}`, `GET /entropy`, query parameters, JSON fields, and status codes.
-- [ ] **DOC-05**: User can read `docs/data-model.md` to distinguish ETSI `key_ID`, SKIP `keyId` / `skip_key_id`, key material formats, provider state, and deterministic textual ID mapping.
+- [x] **DOC-03**: User can read `docs/api-etsi014-mock.md` to understand the `kms/`-backed minimal logical ETSI GS QKD 014 profile, including status, initiator key request, responder key retrieval by key IDs, request/response examples, and documented deviations from full ETSI 014.
+- [x] **DOC-04**: User can read `docs/api-skip.md` to see the SKIP API contract pinned to `draft-singh-skip-00`, including `GET /capabilities`, `GET /key`, `GET /key/{keyId}`, `GET /entropy`, query parameters, JSON fields, and status codes.
+- [x] **DOC-05**: User can read `docs/data-model.md` to distinguish ETSI `key_ID`, SKIP `keyId` / `skip_key_id`, key material formats, provider state, and deterministic textual ID mapping.
 - [ ] **DOC-06**: User can read `docs/test-plan.md` to see planned manual, contract, and end-to-end test scenarios for Phase 0 and later implementation phases.
 - [ ] **DOC-07**: User can read `docs/security-assumptions.md` to understand local-only assumptions, simulated key limits, TLS/authentication deferrals, logging risks, entropy expectations, and non-production claims.
 
@@ -27,8 +27,8 @@ Requirements for the first project release: Phase 0 technical plan, documentatio
 ### Protocol Contracts
 
 - [x] **PROTO-01**: Documentation states that the Key Provider acts as an ETSI 014 mock client toward the KME and as a SKIP server toward the encryptor.
-- [ ] **PROTO-02**: Documentation states that SKIP `keyId` is deterministically mapped as `SKIP-{master_SAE_ID}-{slave_SAE_ID}-{key_ID}`, while key material remains non-derivable from the identifier alone.
-- [ ] **PROTO-03**: Documentation states that ETSI-facing key material and SKIP-facing key material use separate protocol representations and must not be collapsed into one untyped field.
+- [x] **PROTO-02**: Documentation states that SKIP `keyId` is deterministically mapped as `SKIP-{master_SAE_ID}-{slave_SAE_ID}-{key_ID}`, while key material remains non-derivable from the identifier alone.
+- [x] **PROTO-03**: Documentation states that ETSI-facing key material and SKIP-facing key material use separate protocol representations and must not be collapsed into one untyped field.
 - [x] **PROTO-04**: Documentation states that real Cisco encryptor integration and real IKEv2/RFC8784 integration are future phases, with simulated encryptors used first.
 
 ### Scaffolding
@@ -82,9 +82,9 @@ Which phases cover which requirements. Updated during roadmap creation.
 |-------------|-------|--------|
 | DOC-01 | Phase 1 | Complete |
 | DOC-02 | Phase 1 | Complete |
-| DOC-03 | Phase 1 | Pending |
-| DOC-04 | Phase 1 | Pending |
-| DOC-05 | Phase 1 | Pending |
+| DOC-03 | Phase 1 | Complete |
+| DOC-04 | Phase 1 | Complete |
+| DOC-05 | Phase 1 | Complete |
 | DOC-06 | Phase 1 | Pending |
 | DOC-07 | Phase 1 | Pending |
 | PLAN-01 | Phase 1 | Complete |
@@ -92,8 +92,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | PLAN-03 | Phase 1 | Complete |
 | PLAN-04 | Phase 1 | Complete |
 | PROTO-01 | Phase 1 | Complete |
-| PROTO-02 | Phase 1 | Pending |
-| PROTO-03 | Phase 1 | Pending |
+| PROTO-02 | Phase 1 | Complete |
+| PROTO-03 | Phase 1 | Complete |
 | PROTO-04 | Phase 1 | Complete |
 | SCAF-01 | Phase 1 | Pending |
 | SCAF-02 | Phase 1 | Pending |
