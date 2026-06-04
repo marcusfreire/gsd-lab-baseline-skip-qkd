@@ -4,22 +4,35 @@
 
 **QKD ETSI 014 Mock + SKIP Baseline**
 
-This project is an executable local baseline for integrating a logical ETSI GS QKD 014 mock API, independent SKIP Key Providers, and simulated encryptors. It is aimed primarily at lab/research users who need a reproducible environment to validate how QKD-derived key material can be collected by Key Providers and exposed through SKIP for future IKEv2/RFC8784 PPK use.
+This project is an executable local baseline for integrating two logical ETSI GS QKD 014 KME simulator instances, independent SKIP Key Providers, and simulated encryptors. It is aimed primarily at lab/research users who need a reproducible environment to validate how QKD-derived key material can be collected by Key Providers acting as SAEs and exposed through SKIP for future IKEv2/RFC8784 PPK use.
 
 The first milestone is deliberately pre-implementation: it defines the architecture, API contracts, data model, security assumptions, test plan, Docker Compose skeleton, and service directory structure before service logic is built.
 
-**Core Value:** Prove, with precise contracts and a runnable local shape, that independent Key Providers can act as ETSI 014 mock clients toward a simulated KME and as SKIP servers toward encryptors while preserving compatible key material on both sides.
+**Core Value:** Prove, with precise contracts and a runnable local shape, that KeyProvider-A and KeyProvider-B can act independently as SAE-A and SAE-B toward separate local KME instances while exposing compatible SKIP key material to simulated encryptors.
 
 ### Constraints
 
-- **Stack**: Python/FastAPI for services - chosen for fast API iteration, testability, SQLite support, and simple local service scaffolding.
+- **Stack**: `kms/` is the Rust ETSI 014 KME simulator used for KME-A and KME-B. Python/FastAPI remains the planned stack for future Key Provider and simulated encryptor services unless superseded by later decisions.
 - **Runtime**: Docker Compose is the primary local runtime - the baseline must be easy to run as multiple local services.
 - **Persistence**: Each Key Provider uses its own SQLite database - provider state must survive restarts without introducing a central provider database.
 - **Protocol Contract**: SKIP behavior follows `draft-singh-skip-00` - endpoint names, JSON fields, status codes, `localSystemID`, `remoteSystemID`, `keyId`, `key`, and entropy behavior must be documented against that draft.
-- **ETSI Scope**: ETSI GS QKD 014 is simulated logically - only the KME behaviors required for key collection are modeled in the first baseline.
-- **Identifier Mapping**: `skip_key_id` / SKIP `keyId` is deterministically derived from `qkd_key_id` - the derivation must be stable, documented, collision-aware, and must not reveal key material.
+- **ETSI Scope**: ETSI GS QKD 014 is simulated logically through two KME instances, KME-A and KME-B. Public routes, methods, JSON names, SAE identity handling, topology authorization, and one-time `dec_keys` lifecycle must preserve the supported ETSI 014 subset.
+- **KME Topology**: KeyProvider-A acts as SAE-A and calls only KME-A. KeyProvider-B acts as SAE-B and calls only KME-B. Do not merge both sides into one KME instance.
+- **KME Synchronization**: Logical key compatibility across KME-A and KME-B is achieved through a deterministic key-source/seed/fake source so the same ETSI `key_ID` maps to the same key bytes on both KMEs.
+- **Identifier Mapping**: `skip_key_id` / SKIP `keyId` uses the deterministic format `SKIP-{master_SAE_ID}-{slave_SAE_ID}-{key_ID}` for this baseline, for example `SKIP-SAE-A-SAE-B-QKD-000001`. The ID must not reveal key material.
 - **Security**: Simulated key material is not production-protected - security assumptions must explicitly avoid implying production readiness.
 - **Phase 0 Boundary**: No full service logic before the technical plan and documentation baseline exist - the first phase is documentation, scaffolding, and acceptance criteria.
+
+### Architecture Reassessment Constraints
+
+- Do not model a quantum channel, NetSquid, BB84, QBER, reconciliation, privacy amplification, or physical QKD behavior.
+- ETSI public API documentation must use `status`, `enc_keys`, and `dec_keys`; avoid generic key API names.
+- Public ETSI JSON names must preserve `source_KME_ID`, `target_KME_ID`, `master_SAE_ID`, `slave_SAE_ID`, `key_ID`, and `key_IDs`.
+- SAE/KME topology is an authorization policy. In mTLS mode, SAE identity comes from the client certificate Common Name. In local HTTP mode, `x-sae-id` is allowed only when mTLS is disabled.
+- `enc_keys` stores or emits keys with master/slave ownership metadata.
+- `dec_keys` verifies caller slave SAE and path master SAE, then consumes successful keys so repeat retrieval fails.
+- ETSI key material is base64. SKIP key material is hexadecimal.
+- Never log full key material; use fingerprints.
 
 <!-- GSD:project-end -->
 
@@ -34,18 +47,18 @@ The first milestone is deliberately pre-implementation: it defines the architect
 | Technology | Version | Purpose | Why Recommended |
 |------------|---------|---------|-----------------|
 | Python | 3.12.x or 3.13.x | Service implementation language | Stable FastAPI support, broad crypto/testing ecosystem, and straightforward Docker images. Prefer 3.12 for conservative compatibility; 3.13 is viable if dependencies are pinned and tested. |
-| FastAPI | 0.136.3 | REST API framework for KME mock, Key Providers, and simulated encryptors | Direct OpenAPI generation, Pydantic validation, and good fit for explicit protocol contracts. |
+| FastAPI | 0.136.3 | REST API framework for future Key Providers and simulated encryptors | Direct OpenAPI generation, Pydantic validation, and good fit for explicit protocol contracts. KME-A and KME-B use the Rust `kms/` simulator. |
 | Uvicorn | 0.48.0 | ASGI runtime | Standard FastAPI runtime path with simple local service startup. |
 | Pydantic | 2.13.4 | Request/response validation | FastAPI depends on Pydantic/Starlette; explicit models are useful for ETSI/SKIP contract tests. |
 | SQLite | Built into Python | Per-provider local state | Matches the requirement for independent KeyProvider-A and KeyProvider-B local persistence without a central database. |
 | SQLAlchemy | 2.0.50 | Database abstraction | Lets each service use a small repository layer and keeps schema definitions explicit for later migrations. |
-| Docker Compose | Current local Docker plugin | Local multi-service runtime | Best fit for running KME mock, KeyProvider-A, KeyProvider-B, and simulated encryptors with explicit network names, ports, volumes, and environment. |
+| Docker Compose | Current local Docker plugin | Local multi-service runtime | Best fit for running KME-A, KME-B, KeyProvider-A, KeyProvider-B, and simulated encryptors with explicit network names, ports, volumes, and environment. |
 
 ### Supporting Libraries
 
 | Library | Version | Purpose | When to Use |
 |---------|---------|---------|-------------|
-| httpx | 0.28.1 | HTTP client and tests | Key Providers call KME mock; simulated encryptors call SKIP; integration tests call services. |
+| httpx | 0.28.1 | HTTP client and tests | Key Providers call their local KME instance; simulated encryptors call SKIP; integration tests call services. |
 | pytest | 9.0.3 | Test runner | Contract and integration tests for ETSI mock and SKIP flows. |
 | pytest-asyncio | Pin current during implementation | Async endpoint/client tests | Needed if service tests use async `httpx.AsyncClient`. |
 | typer | Pin current during implementation | Minimal CLI for inspection/debug | Optional, but useful for provider state inspection without expanding the REST surface. |
@@ -78,7 +91,7 @@ The first milestone is deliberately pre-implementation: it defines the architect
 | Avoid | Why | Use Instead |
 |-------|-----|-------------|
 | Central shared database between Key Providers | Breaks the independence constraint and hides synchronization problems. | Separate SQLite DB per provider. |
-| Physical QKD simulators in the baseline | Pulls scope toward BB84/channel modeling instead of logical key delivery. | Minimal ETSI 014 logical KME mock. |
+| Physical QKD simulators in the baseline | Pulls scope toward BB84/channel modeling instead of logical key delivery. | Two logical ETSI 014 KME simulator instances backed by `kms/`. |
 | Ad hoc SKIP-like endpoints | The project must follow `draft-singh-skip-00`, especially paths, JSON field names, and key semantics. | Contract-first `docs/api-skip.md` and tests. |
 | Real IKEv2 in Phase 0 | Adds operational complexity before SKIP delivery is validated. | Simulated encryptors that exercise SKIP. |
 | Alpine image by default | Smaller but musl/libc differences can complicate Python packages. | `python:3.12-slim-bookworm` or `python:3.13-slim-bookworm` unless image size becomes critical. |

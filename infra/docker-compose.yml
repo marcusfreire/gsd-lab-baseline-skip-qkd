@@ -1,0 +1,122 @@
+services:
+  kme-a:
+    image: rust:1.87-bookworm
+    working_dir: /workspace
+    command:
+      - sh
+      - -lc
+      - echo "Phase 0 scaffold for KME-A ETSI 014 mTLS simulator from /kms"
+    environment:
+      KME_ID: KME-A
+      USE_MTLS: "true"
+      SAE_ID: SAE-A
+      PEER_SAE_ID: SAE-B
+      KEY_SOURCE_MODE: deterministic-fake-source
+      KEY_SOURCE_SEED: qkd-skip-baseline-phase0
+      SQLITE_PATH: /data/kme-a.sqlite3
+    ports:
+      - "8443:8443"
+    volumes:
+      - ../kms:/workspace/kms:ro
+      - kme_a_data:/data
+
+  kme-b:
+    image: rust:1.87-bookworm
+    working_dir: /workspace
+    command:
+      - sh
+      - -lc
+      - echo "Phase 0 scaffold for KME-B ETSI 014 mTLS simulator from /kms"
+    environment:
+      KME_ID: KME-B
+      USE_MTLS: "true"
+      SAE_ID: SAE-B
+      PEER_SAE_ID: SAE-A
+      KEY_SOURCE_MODE: deterministic-fake-source
+      KEY_SOURCE_SEED: qkd-skip-baseline-phase0
+      SQLITE_PATH: /data/kme-b.sqlite3
+    ports:
+      - "9443:8443"
+    volumes:
+      - ../kms:/workspace/kms:ro
+      - kme_b_data:/data
+
+  keyprovider-a:
+    image: python:3.12-slim-bookworm
+    command:
+      - python
+      - -c
+      - "print('Phase 0 scaffold for KeyProvider-A: SAE-A ETSI client to KME-A and SKIP server for Encryptor-A')"
+    environment:
+      LOCAL_SAE_ID: SAE-A
+      PEER_SAE_ID: SAE-B
+      LOCAL_SYSTEM_ID: Alice
+      REMOTE_SYSTEM_ID: Bob
+      KME_BASE_URL: https://kme-a:8443
+      KME_ID: KME-A
+      SKIP_KEY_ID_FORMAT: SKIP-{master_SAE_ID}-{slave_SAE_ID}-{key_ID}
+      SQLITE_PATH: /data/keyprovider-a.sqlite3
+      ETSI_KEY_ENCODING: base64
+      SKIP_KEY_ENCODING: hex
+    ports:
+      - "8101:8080"
+    volumes:
+      - kp_a_data:/data
+    depends_on:
+      - kme-a
+
+  keyprovider-b:
+    image: python:3.12-slim-bookworm
+    command:
+      - python
+      - -c
+      - "print('Phase 0 scaffold for KeyProvider-B: SAE-B ETSI client to KME-B and SKIP server for Encryptor-B')"
+    environment:
+      LOCAL_SAE_ID: SAE-B
+      PEER_SAE_ID: SAE-A
+      LOCAL_SYSTEM_ID: Bob
+      REMOTE_SYSTEM_ID: Alice
+      KME_BASE_URL: https://kme-b:8443
+      KME_ID: KME-B
+      SKIP_KEY_ID_FORMAT: SKIP-{master_SAE_ID}-{slave_SAE_ID}-{key_ID}
+      SQLITE_PATH: /data/keyprovider-b.sqlite3
+      ETSI_KEY_ENCODING: base64
+      SKIP_KEY_ENCODING: hex
+    ports:
+      - "8102:8080"
+    volumes:
+      - kp_b_data:/data
+    depends_on:
+      - kme-b
+
+  encryptor-a-sim:
+    image: python:3.12-slim-bookworm
+    command:
+      - python
+      - -c
+      - "print('Phase 0 scaffold for Encryptor-A sim: GET /key?remoteSystemID=Bob')"
+    environment:
+      LOCAL_SYSTEM_ID: Alice
+      REMOTE_SYSTEM_ID: Bob
+      SKIP_BASE_URL: http://keyprovider-a:8080
+    depends_on:
+      - keyprovider-a
+
+  encryptor-b-sim:
+    image: python:3.12-slim-bookworm
+    command:
+      - python
+      - -c
+      - "print('Phase 0 scaffold for Encryptor-B sim: GET /key/{keyId}?remoteSystemID=Alice')"
+    environment:
+      LOCAL_SYSTEM_ID: Bob
+      REMOTE_SYSTEM_ID: Alice
+      SKIP_BASE_URL: http://keyprovider-b:8080
+    depends_on:
+      - keyprovider-b
+
+volumes:
+  kme_a_data:
+  kme_b_data:
+  kp_a_data:
+  kp_b_data:
