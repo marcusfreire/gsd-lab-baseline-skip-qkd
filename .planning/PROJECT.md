@@ -14,22 +14,22 @@ Prove, with precise contracts and a runnable local shape, that KeyProvider-A and
 
 ### Validated
 
-(None yet - ship to validate)
+- [x] Define a documented baseline architecture for KME-A, KME-B, KeyProvider-A, KeyProvider-B, simulated encryptors, and future IKEv2/RFC8784 PPK use. Validated in Phase 1.
+- [x] Treat the committed `kms/` directory as the official Rust ETSI 014 KME simulator baseline used by KME-A and KME-B. Validated in Phase 1.
+- [x] Document the supported logical ETSI GS QKD 014 API from `kms/`, focused on QKD key collection by Key Providers, not physical QKD simulation. Validated in Phase 1.
+- [x] Document the SKIP API according to `draft-singh-skip-00` as the project-pinned SKIP contract. Validated in Phase 1.
+- [x] Define KeyProvider-A and KeyProvider-B as independent services with separate local state and no shared central database between providers. Validated in Phase 1.
+- [x] Define the Key Provider dual role: ETSI 014 mock API client toward the simulated KME and SKIP server toward the encryptor. Validated in Phase 1.
+- [x] Define deterministic textual `skip_key_id` / SKIP `keyId` mapping as `SKIP-{master_SAE_ID}-{slave_SAE_ID}-{key_ID}`, while ensuring key material cannot be derived from the ID alone. Validated in Phase 1.
+- [x] Define local SQLite persistence for each Key Provider. Validated in Phase 1.
+- [x] Define simulated encryptors as the first consumers of SKIP; Cisco or other real encryptor integration is deferred. Validated in Phase 1.
+- [x] Create Phase 0 documentation deliverables: `README.md`, `docs/architecture.md`, `docs/api-etsi014-mock.md`, `docs/api-skip.md`, `docs/data-model.md`, `docs/test-plan.md`, and `docs/security-assumptions.md`. Validated in Phase 1.
+- [x] Create initial infrastructure and repository shape: `infra/docker-compose.yml` and service directories without full service logic. Validated in Phase 1.
+- [x] Define Phase 0 risks, task decomposition, and acceptance criteria before writing service implementation code. Validated in Phase 1.
 
 ### Active
 
-- [ ] Define a documented baseline architecture for KME-A, KME-B, KeyProvider-A, KeyProvider-B, simulated encryptors, and future IKEv2/RFC8784 PPK use.
-- [ ] Treat the committed `kms/` directory as the official Rust ETSI 014 KME simulator baseline used by KME-A and KME-B.
-- [ ] Document the supported logical ETSI GS QKD 014 API from `kms/`, focused on QKD key collection by Key Providers, not physical QKD simulation.
-- [ ] Document the SKIP API according to `draft-singh-skip-00` as the project-pinned SKIP contract.
-- [ ] Define KeyProvider-A and KeyProvider-B as independent services with separate local state and no shared central database between providers.
-- [ ] Define the Key Provider dual role: ETSI 014 mock API client toward the simulated KME and SKIP server toward the encryptor.
-- [ ] Define deterministic textual `skip_key_id` / SKIP `keyId` mapping as `SKIP-{master_SAE_ID}-{slave_SAE_ID}-{key_ID}`, while ensuring key material cannot be derived from the ID alone.
-- [ ] Define local SQLite persistence for each Key Provider.
-- [ ] Define simulated encryptors as the first consumers of SKIP; Cisco or other real encryptor integration is deferred.
-- [ ] Create Phase 0 documentation deliverables: `README.md`, `docs/architecture.md`, `docs/api-etsi014-mock.md`, `docs/api-skip.md`, `docs/data-model.md`, `docs/test-plan.md`, and `docs/security-assumptions.md`.
-- [ ] Create initial infrastructure and repository shape: `infra/docker-compose.yml` and service directories without full service logic.
-- [ ] Define Phase 0 risks, task decomposition, and acceptance criteria before writing service implementation code.
+None. Phase 1 completed the Phase 0 documentation and scaffold baseline.
 
 ### Out of Scope
 
@@ -67,16 +67,16 @@ The first implementation target uses Python/FastAPI, REST APIs, a small CLI wher
 
 | Decision | Rationale | Outcome |
 |----------|-----------|---------|
-| Build an executable integration environment, not only a library or test harness | The goal is to validate service boundaries and end-to-end local shape | - Pending |
-| Include `kms/` as the official KME simulator baseline | The Rust simulator already preserves the supported ETSI 014 routes, JSON names, topology policy, storage lifecycle, and tests | - Pending |
-| Use two `kms/` KME instances, not one central KME | The integration point is key collection and delivery between independent SAE sides, not QKD physics | - Pending |
-| Implement KeyProvider-A and KeyProvider-B as independent processes | Provider independence and no central shared state are core to the architecture | - Pending |
-| Use SQLite per Key Provider | Local persistence is needed for inventory/restarts while keeping services independent | - Pending |
-| Pin SKIP contract to `draft-singh-skip-00` | The earlier Cisco draft is archived; the project should track the active successor | - Pending |
-| Map SKIP `keyId` deterministically as `SKIP-{master_SAE_ID}-{slave_SAE_ID}-{key_ID}` | Enables reproducible mapping between ETSI and SKIP domains while keeping key material non-derivable from the ID | - Pending |
-| Use simulated encryptors first | Real Cisco/encryptor integration should not block baseline protocol validation | - Pending |
-| Defer IKEv2/RFC8784 real integration | RFC8784 is the future consumer path, but Phase 0 and early phases validate SKIP delivery first | - Pending |
-| Use Docker Compose as primary runtime | Multiple services need to run together with explicit ports and configuration | - Pending |
+| Build an executable integration environment, not only a library or test harness | The goal is to validate service boundaries and end-to-end local shape | Validated in Phase 1 through documentation and parseable Compose scaffold |
+| Include `kms/` as the official KME simulator baseline | The Rust simulator already preserves the supported ETSI 014 routes, JSON names, topology policy, storage lifecycle, and tests | Validated in Phase 1 |
+| Use two `kms/` KME instances, not one central KME | The integration point is key collection and delivery between independent SAE sides, not QKD physics | Validated in Phase 1 |
+| Implement KeyProvider-A and KeyProvider-B as independent processes | Provider independence and no central shared state are core to the architecture | Validated in Phase 1 as a documented/scaffolded boundary |
+| Use SQLite per Key Provider | Local persistence is needed for inventory/restarts while keeping services independent | Validated in Phase 1 as planned provider state |
+| Pin SKIP contract to `draft-singh-skip-00` | The earlier Cisco draft is archived; the project should track the active successor | Validated in Phase 1 |
+| Map SKIP `keyId` deterministically as `SKIP-{master_SAE_ID}-{slave_SAE_ID}-{key_ID}` | Enables reproducible mapping between ETSI and SKIP domains while keeping key material non-derivable from the ID | Validated in Phase 1 |
+| Use simulated encryptors first | Real Cisco/encryptor integration should not block baseline protocol validation | Validated in Phase 1 |
+| Defer IKEv2/RFC8784 real integration | RFC8784 is the future consumer path, but Phase 0 and early phases validate SKIP delivery first | Validated in Phase 1 |
+| Use Docker Compose as primary runtime | Multiple services need to run together with explicit ports and configuration | Validated in Phase 1 with `docker compose -f infra/docker-compose.yml config` |
 
 ## Evolution
 
@@ -96,4 +96,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-06-02 after initialization*
+*Last updated: 2026-06-04 after Phase 1 completion*
