@@ -13,7 +13,7 @@ The first milestone establishes a documentation-first and scaffold-first baselin
 
 Decimal phases appear between their surrounding integers in numeric order.
 
-- [ ] **Phase 1: Phase 0 Contracts and Scaffolding** - Create the technical plan, docs, Docker Compose skeleton, and service directories before implementation logic.
+- [x] **Phase 1: Phase 0 Contracts and Scaffolding** - Create the technical plan, docs, Docker Compose skeleton, and service directories before implementation logic. (completed 2026-06-04)
 
 ## Phase Details
 
@@ -31,7 +31,7 @@ Decimal phases appear between their surrounding integers in numeric order.
   4. User can verify from the docs and Compose skeleton that KeyProvider-A and KeyProvider-B are independent instances with separate planned SQLite state and no central provider database.
   5. User can see that real Cisco encryptors and real IKEv2/RFC8784 integration are future work, while simulated encryptors are the first planned consumers.
 
-**Plans:** 3/4 plans executed
+**Plans:** 4/4 plans complete
 Plans:
 **Wave 1**
 
@@ -44,7 +44,7 @@ Plans:
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
-- [ ] 01-04: Create Docker Compose skeleton and service directory scaffolding without full logic.
+- [x] 01-04: Create Docker Compose skeleton and service directory scaffolding without full logic.
 
 ## Progress
 
@@ -53,7 +53,7 @@ Phases execute in numeric order: 1
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Phase 0 Contracts and Scaffolding | 3/4 | In Progress|  |
+| 1. Phase 0 Contracts and Scaffolding | 4/4 | Complete   | 2026-06-04 |
 
 ## Future Milestone Candidates
 

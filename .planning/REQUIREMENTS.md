@@ -33,10 +33,10 @@ Requirements for the first project release: Phase 0 technical plan, documentatio
 
 ### Scaffolding
 
-- [ ] **SCAF-01**: Repository contains `infra/docker-compose.yml` declaring initial services for `kme-a`, `kme-b`, KeyProvider-A, KeyProvider-B, and simulated encryptor components, with KME services referencing `kms/`.
-- [ ] **SCAF-02**: Repository contains service directory skeletons for KME mock, configurable Key Provider implementation, and simulated encryptor implementation.
-- [ ] **SCAF-03**: KeyProvider-A and KeyProvider-B scaffolding use separate configuration and separate planned SQLite storage paths or volumes.
-- [ ] **SCAF-04**: Phase 0 scaffolding avoids full service logic while making the intended future implementation locations clear.
+- [x] **SCAF-01**: Repository contains `infra/docker-compose.yml` declaring initial services for `kme-a`, `kme-b`, KeyProvider-A, KeyProvider-B, and simulated encryptor components, with KME services referencing `kms/`.
+- [x] **SCAF-02**: Repository contains service directory skeletons for KME mock, configurable Key Provider implementation, and simulated encryptor implementation.
+- [x] **SCAF-03**: KeyProvider-A and KeyProvider-B scaffolding use separate configuration and separate planned SQLite storage paths or volumes.
+- [x] **SCAF-04**: Phase 0 scaffolding avoids full service logic while making the intended future implementation locations clear.
 
 ## v2 Requirements
 
@@ -95,10 +95,10 @@ Which phases cover which requirements. Updated during roadmap creation.
 | PROTO-02 | Phase 1 | Complete |
 | PROTO-03 | Phase 1 | Complete |
 | PROTO-04 | Phase 1 | Complete |
-| SCAF-01 | Phase 1 | Pending |
-| SCAF-02 | Phase 1 | Pending |
-| SCAF-03 | Phase 1 | Pending |
-| SCAF-04 | Phase 1 | Pending |
+| SCAF-01 | Phase 1 | Complete |
+| SCAF-02 | Phase 1 | Complete |
+| SCAF-03 | Phase 1 | Complete |
+| SCAF-04 | Phase 1 | Complete |
 
 **Coverage:**
 
