@@ -147,6 +147,22 @@ The only cross-side synchronization in the baseline is the deterministic
 seed/fake key-source policy that makes the two KME instances produce or load
 the same key bytes for the same `key_ID`.
 
+## Runtime Scaffold
+
+The Phase 0 scaffold is declared in `infra/docker-compose.yml` with six local
+services:
+
+- `kme-a`
+- `kme-b`
+- `keyprovider-a`
+- `keyprovider-b`
+- `encryptor-a-sim`
+- `encryptor-b-sim`
+
+The `kme-a` and `kme-b` services reference `kms/` as their simulator source.
+The Key Provider services use separate planned SQLite paths or volumes. The
+Compose commands are placeholders and do not implement API logic.
+
 ## Future Boundary
 
 RFC8784 remains a future consumer boundary. The SKIP `keyId` handoff represents
