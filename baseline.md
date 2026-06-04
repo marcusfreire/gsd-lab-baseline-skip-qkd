@@ -1,599 +1,257 @@
-# Baseline: Integração ETSI GS QKD 014 Simulado + SKIP + RFC 8784
+# Baseline: Subconjunto ETSI GS QKD 014 do KMS + SKIP
 
-> Historical context only. This document is retained as an older Portuguese
-> baseline note. Current normative project authority lives in `README.md` and
-> `docs/architecture.md`.
+## 1. Objetivo
 
-## 1. Visão geral
+Este documento define a baseline local para integrar duas instancias logicas do
+KMS Experimental Key-Management Simulator em `kms/`, dois Key Providers
+independentes e dois encryptors simulados via SKIP.
 
-Este projeto define uma arquitetura baseline para integrar chaves provenientes de uma infraestrutura QKD simulada com mecanismos clássicos de proteção de rede, em especial IPsec/IKEv2 com Post-quantum Preshared Key (PPK), conforme o RFC 8784.
+A baseline atual nao define uma KME generica nem uma API "ETSI-like". Ela adota
+o subconjunto fiel do ETSI GS QKD 014 implementado e documentado pelo `kms/`,
+conforme os ADRs 0001-0005.
 
-Nesta baseline, não será modelado o canal quântico. O foco inicial é a arquitetura de integração, ou seja, o caminho percorrido pela chave após sua disponibilização pela camada QKD.
-
-Para isso, será implementada uma **API simples que simula o comportamento lógico do ETSI GS QKD 014**. Essa API representa uma KME simulada capaz de disponibilizar chaves simétricas sincronizadas para dois lados da comunicação: Alice e Bob.
-
-O objetivo é validar o seguinte fluxo:
+O objetivo e validar, em laboratorio, o seguinte fluxo:
 
 ```text
-ETSI 014 Mock KME
-        ↓
-Key Provider
-        ↓
-SKIP
-        ↓
-Encryptor
-        ↓
-IKEv2/RFC 8784
-        ↓
-IPsec com PPK derivada de QKD
-````
-
-A baseline busca responder à seguinte pergunta arquitetural:
-
-> Como integrar uma fonte de chaves QKD, exposta por uma interface compatível com ETSI GS QKD 014, a um sistema SKIP que entrega PPKs para uso em IKEv2/RFC 8784?
-
----
-
-## 2. Escopo da baseline
-
-### 2.1 Dentro do escopo
-
-Esta baseline cobre:
-
-* simulação lógica da entrega de chaves QKD;
-* API compatível com o comportamento essencial do ETSI GS QKD 014;
-* duas entidades KME simuladas: `KME-A` e `KME-B`;
-* dois Key Providers independentes: `KeyProvider-A` e `KeyProvider-B`;
-* bancos locais separados para cada Key Provider;
-* mapeamento entre identificadores ETSI/QKD e identificadores SKIP;
-* exposição de endpoints SKIP para os encryptors;
-* entrega da mesma PPK para Alice e Bob;
-* preparação para uso da PPK no RFC 8784.
-
-### 2.2 Fora do escopo
-
-Esta baseline não cobre:
-
-* uso de NetSquid;
-* simulação física do BB84;
-* modelagem de canal quântico;
-* cálculo de QBER;
-* reconciliação de chaves;
-* privacy amplification;
-* hardware QKD real;
-* trusted-node routing;
-* key relay multi-hop em QKDN;
-* integração completa com roteadores reais;
-* avaliação criptográfica da segurança física do QKD.
-
-Nesta etapa, a API simulada representa apenas a disponibilidade lógica de chaves simétricas sincronizadas, como se essas chaves tivessem sido produzidas por uma infraestrutura QKD real.
-
----
-
-## 3. Arquitetura de alto nível
-
-```text
-                 +--------------------------------------+
-                 |        ETSI 014 Mock QKD Layer        |
-                 |                                      |
-                 |  Gera chaves simétricas sincronizadas |
-                 |  e disponibiliza via API ETSI 014     |
-                 +-------------------+------------------+
-                                     |
-                                     |
-             mesma chave e mesmo qkd_key_id para Alice e Bob
-                                     |
-        +----------------------------+----------------------------+
-        |                                                         |
-+-------v--------+                                      +---------v------+
-|    KME-A       |                                      |     KME-B      |
-| Mock ETSI 014  |                                      | Mock ETSI 014  |
-+-------+--------+                                      +---------+------+
-        |                                                         |
-        | ETSI 014-like                                           | ETSI 014-like
-        | GET_STATUS                                              | GET_STATUS
-        | GET_KEY                                                 | GET_KEY_WITH_KEY_IDS
-        |                                                         |
-+-------v--------+                                      +---------v------+
-| KeyProvider-A |                                      | KeyProvider-B  |
-| Banco local A |                                      | Banco local B  |
-+-------+--------+                                      +---------+------+
-        |                                                         |
-        | SKIP                                                    | SKIP
-        | GET /capabilities                                      | GET /capabilities
-        | GET /key?remoteSystemID=Bob                            | GET /key/{keyId}
-        |                                                         |
-+-------v--------+                                      +---------v------+
-| Encryptor-A   |<------------ IKEv2/RFC8784 ---------->| Encryptor-B    |
-| IPsec peer    |                                      | IPsec peer     |
-+----------------+                                      +----------------+
+KME-A (kms/, ETSI 014 subset) -> KeyProvider-A -> SKIP -> Encryptor-A sim
+       |                                                        |
+       | deterministic fake key-source by key_ID                | keyId handoff
+       v                                                        v
+KME-B (kms/, ETSI 014 subset) -> KeyProvider-B -> SKIP -> Encryptor-B sim
 ```
 
----
+O fluxo prova que os dois lados conseguem obter material de chave compativel
+sem centralizar o estado dos Key Providers e sem simular fisica QKD.
 
-## 4. Ideia central da arquitetura
+## 2. Autoridade
 
-A arquitetura separa três domínios.
+Fontes normativas locais desta baseline:
 
-### 4.1 Domínio ETSI 014 simulado
+- `kms/README.md`
+- `kms/adrs/0001-experimental-key-management-simulator.md`
+- `kms/adrs/0002-etsi-014-protocol-fidelity.md`
+- `kms/adrs/0003-sae-identity-and-topology-policy.md`
+- `kms/adrs/0004-key-source-and-etsi-storage-lifecycle.md`
+- `kms/adrs/0005-testing-and-fidelity-guidelines.md`
+- `docs/architecture.md`
+- `docs/etsi014-alignment.md`
+- `docs/api-etsi014-mock.md`
+- `docs/api-skip.md`
+- `docs/data-model.md`
+- `docs/security-assumptions.md`
 
-Esse domínio representa a entrega lógica de chaves QKD.
+Autoridade externa:
 
-Ele é composto por:
+- ETSI GS QKD 014 para a fronteira KME/SAE.
+- `draft-singh-skip-00` para a fronteira Key Provider/encryptor.
+- RFC 8784 apenas como contexto futuro para PPK/IKEv2.
 
-```text
-KME-A
-KME-B
-ETSI 014 Mock API
-```
+## 3. Decisao de baseline
 
-A função desse domínio é garantir que Alice e Bob consigam obter a mesma chave a partir de suas respectivas KMEs.
+### 3.1 `kms/` e o KMS experimental
 
----
+O diretorio `kms/` e o simulador oficial desta baseline. Ele e um KMS
+experimental, nao um KMS de producao.
 
-### 4.2 Domínio Key Provider
+De acordo com o ADR 0001:
 
-Esse domínio representa a camada intermediária entre o mundo QKD/ETSI e o mundo SKIP.
+- o binario e configurado pelo modulo `config`;
+- protocolos publicos vivem em modulos especificos;
+- topologia, identidade, fonte de chaves e armazenamento sao preocupacoes
+  compartilhadas do simulador;
+- requisitos de producao como HSM, consistencia em cluster, hardening de
+  segredos e controles de compliance estao fora do escopo.
 
-Ele é composto por:
+Futuras fases devem estender `kms/` para comportamento KME/ETSI. Elas nao devem
+criar um KME concorrente em `services/kme-mock`.
 
-```text
-KeyProvider-A
-KeyProvider-B
-Banco local A
-Banco local B
-```
+### 3.2 Duas KMEs, nao uma KME central
 
-A função dos Key Providers é:
+A baseline usa duas instancias separadas do simulador:
 
-* consultar a KME local;
-* coletar chaves QKD;
-* armazenar chaves no banco local;
-* criar identificadores SKIP;
-* mapear `skip_key_id` para `qkd_key_id`;
-* disponibilizar a chave ao encryptor via SKIP.
+- `KME-A`, conectada a `SAE-A`.
+- `KME-B`, conectada a `SAE-B`.
 
----
+`KME-A` e `KME-B` possuem armazenamento KME separado. Elas podem compartilhar
+somente uma politica deterministica de fake key-source/seed para que o mesmo
+ETSI `key_ID` resulte nos mesmos bytes de chave nos dois lados durante testes.
 
-### 4.3 Domínio SKIP/RFC 8784
+Nao ha banco KME central e nao ha banco central de Key Providers.
 
-Esse domínio representa o consumo da chave pelos dispositivos de segurança de rede.
+## 4. Escopo
 
-Ele é composto por:
+### 4.1 Dentro do escopo
 
-```text
-Encryptor-A
-Encryptor-B
-SKIP API
-IKEv2/RFC8784
-IPsec
-```
+- Entrega logica de chaves via subconjunto ETSI GS QKD 014 do `kms/`.
+- Rotas publicas `status`, `enc_keys` e `dec_keys` sob `/api/v1/keys`.
+- Identidade SAE resolvida por certificado mTLS ou por `x-sae-id` em modo HTTP
+  local.
+- Topologia SAE/KME como politica de autorizacao.
+- Armazenamento ETSI por `key_ID`, com `master_sae_id`, `slave_sae_id` e bytes
+  de chave.
+- Consumo unico de `dec_keys`.
+- KeyProvider-A e KeyProvider-B independentes, cada um com SQLite proprio.
+- Exposicao SKIP para encryptors simulados.
+- Mapeamento deterministico de `keyId` SKIP:
+  `SKIP-{master_SAE_ID}-{slave_SAE_ID}-{key_ID}`.
 
-A função desse domínio é:
+### 4.2 Fora do escopo
 
-* obter uma PPK a partir do Key Provider;
-* trocar o identificador da PPK durante o IKEv2;
-* recuperar a mesma PPK no lado remoto;
-* misturar a PPK no processo de derivação do IKEv2;
-* estabelecer uma sessão IPsec com reforço pós-quântico.
+- NetSquid.
+- BB84.
+- QBER.
+- Canal quantico.
+- Reconciliacao.
+- Privacy amplification.
+- Hardware QKD real.
+- Trusted-node routing ou key relay multi-hop.
+- Cisco real.
+- IPsec/IKEv2/RFC8784 real.
+- Seguranca de producao.
 
----
+Esta baseline simula disponibilidade logica de material de chave. Ela nao
+modela o processo fisico que geraria esse material.
 
-## 5. Componentes da baseline
-
-## 5.1 ETSI 014 Mock KME
-
-A `ETSI 014 Mock KME` representa uma entidade KME simplificada.
-
-Ela não executa QKD real.
-
-Ela não simula BB84.
-
-Ela não modela o canal quântico.
-
-Sua única função é simular o comportamento lógico esperado de uma KME compatível com ETSI GS QKD 014.
-
-### Responsabilidades
-
-A KME simulada deve:
-
-* gerar ou receber chaves simétricas aleatórias;
-* associar cada chave a um `qkd_key_id`;
-* disponibilizar a mesma chave para Alice e Bob;
-* responder a consultas de status;
-* entregar uma chave nova para o lado iniciador;
-* entregar uma chave existente por identificador para o lado respondedor;
-* marcar chaves como entregues, usadas ou expiradas.
-
-### Endpoints mínimos
-
-A API deve expor, no mínimo:
+## 5. Arquitetura
 
 ```text
-GET_STATUS
-GET_KEY
-GET_KEY_WITH_KEY_IDS
+                 ETSI GS QKD 014 subset                      SKIP subset
+
+  +-----------------------------+                     +----------------------+
+  | KME-A                       |                     | Encryptor-A sim      |
+  | kms simulator instance      |                     | localSystemID=Alice  |
+  | KME_ID=KME-A                |                     +----------+-----------+
+  | connected SAE: SAE-A        |                                |
+  | independent KME storage     |                                | GET /key?remoteSystemID=Bob
+  +--------------+--------------+                                v
+                 ^                                  +-------------+-------------+
+                 | status, enc_keys                 | KeyProvider-A             |
+                 | caller SAE: SAE-A                | ETSI client identity SAE-A|
+                 | peer SAE: SAE-B                  | SKIP server for Alice     |
+                 |                                  | independent SQLite DB     |
+                 |                                  +-------------+-------------+
+                 |                                                |
+                 |                                                | keyId handoff
+                 |                                                v
+                 |                                  +-------------+-------------+
+                 |                                  | KeyProvider-B             |
+                 |                                  | ETSI client identity SAE-B|
+                 |                                  | SKIP server for Bob       |
+                 |                                  | independent SQLite DB     |
+                 |                                  +-------------+-------------+
+                 |                                                ^
+                 v                                                | GET /key/{keyId}?remoteSystemID=Alice
+  +--------------+--------------+                                |
+  | KME-B                       |                     +----------+-----------+
+  | kms simulator instance      |                     | Encryptor-B sim      |
+  | KME_ID=KME-B                |                     | localSystemID=Bob    |
+  | connected SAE: SAE-B        |                     +----------------------+
+  | independent KME storage     |
+  +-----------------------------+
 ```
 
-Esses métodos não precisam reproduzir integralmente a especificação ETSI GS QKD 014 nesta fase. O objetivo é reproduzir o comportamento lógico necessário para a integração.
+## 6. Papel dos componentes
 
----
+### 6.1 KME-A e KME-B
 
-## 5.2 KME-A e KME-B
+`KME-A` e `KME-B` sao instancias separadas do `kms/`.
 
-`KME-A` representa a KME do lado de Alice.
+Responsabilidades:
 
-`KME-B` representa a KME do lado de Bob.
+- expor o subconjunto ETSI 014 suportado;
+- validar a topologia SAE/KME;
+- resolver autorizacao antes de liberar chave;
+- emitir containers ETSI com `key_ID` e `key`;
+- armazenar chaves com ownership master/slave;
+- consumir chaves apos `dec_keys` bem-sucedido.
 
-As duas KMEs devem possuir acesso ao mesmo conjunto lógico de chaves sincronizadas.
+Nao responsabilidades:
 
-Exemplo:
+- nao sao servidores SKIP;
+- nao sao encryptors;
+- nao simulam canal quantico;
+- nao sao KMS de producao.
 
-```text
-KME-A:
-qkd_key_id = QKD-000001
-key        = A1B2C3...
+### 6.2 SAE-A e SAE-B
 
-KME-B:
-qkd_key_id = QKD-000001
-key        = A1B2C3...
-```
+`SAE-A` e `SAE-B` sao identidades ETSI representadas pelos Key Providers quando
+eles chamam suas KMEs locais.
 
-A sincronização entre `KME-A` e `KME-B` é simulada. Não será implementado nesta etapa nenhum protocolo físico ou quântico de sincronização.
+| Identidade ETSI | Representada por | KME local | Sistema SKIP |
+|---|---|---|---|
+| `SAE-A` | `KeyProvider-A` | `KME-A` | `Alice` |
+| `SAE-B` | `KeyProvider-B` | `KME-B` | `Bob` |
 
-### Responsabilidades das KMEs
+### 6.3 KeyProvider-A e KeyProvider-B
 
-Cada KME deve:
+Cada Key Provider atua em dois papeis:
 
-* manter um banco de chaves QKD simuladas;
-* associar chaves a pares de comunicação;
-* disponibilizar chaves para Key Providers autorizados;
-* controlar status de uso;
-* rejeitar chaves inexistentes, expiradas ou já consumidas.
+- cliente ETSI 014/SAE diante da KME local;
+- servidor SKIP diante do encryptor simulado local.
 
----
+Regras:
 
-## 5.3 KeyProvider-A e KeyProvider-B
+- `KeyProvider-A` atua como `SAE-A` e chama somente `KME-A`.
+- `KeyProvider-B` atua como `SAE-B` e chama somente `KME-B`.
+- Cada provider possui seu proprio SQLite.
+- Nao ha banco central entre providers.
+- O provider converte `ETSI base64 -> bytes -> SKIP hex`.
 
-O Key Provider é o componente central desta baseline.
+### 6.4 Encryptor-A sim e Encryptor-B sim
 
-Ele atua como ponte entre:
+Os encryptors simulados sao clientes SKIP. Eles nao sao SAEs ETSI.
 
-```text
-ETSI 014 Mock KME  →  Key Provider  →  SKIP  →  Encryptor
-```
+- `Encryptor-A sim` chama `GET /key?remoteSystemID=Bob`.
+- `Encryptor-B sim` recebe o `keyId` por handoff simulado e chama
+  `GET /key/{keyId}?remoteSystemID=Alice`.
 
-Cada lado possui seu próprio Key Provider.
+Cisco real e IKEv2/RFC8784 real sao fronteiras futuras.
 
-Não há banco central.
+## 7. Subconjunto ETSI GS QKD 014 adotado pelo `kms/`
 
-```text
-Alice → KeyProvider-A → Banco local A
-Bob   → KeyProvider-B → Banco local B
-```
+O ADR 0002 exige fidelidade de rotas, metodos, nomes JSON publicos, status
+codes e lifecycle para o subconjunto suportado.
 
-### Responsabilidades do Key Provider
+### 7.1 Rotas publicas
 
-Cada Key Provider deve:
+| Metodo | Path | Uso na baseline |
+|---|---|---|
+| `GET` | `/api/v1/keys/{slave_SAE_ID}/status` | Consulta de status/topologia pelo master SAE para um slave SAE. |
+| `POST` | `/api/v1/keys/{slave_SAE_ID}/enc_keys` | Forma completa de requisicao de chaves de cifragem. |
+| `GET` | `/api/v1/keys/{slave_SAE_ID}/enc_keys` | Forma simples de requisicao de chaves de cifragem. |
+| `POST` | `/api/v1/keys/{master_SAE_ID}/dec_keys` | Forma completa de recuperacao por IDs de chave. |
+| `GET` | `/api/v1/keys/{master_SAE_ID}/dec_keys` | Forma simples de recuperacao por `key_ID`. |
 
-* consultar sua KME local por meio da API ETSI 014 simulada;
-* obter chaves QKD;
-* armazenar as chaves localmente;
-* gerar ou registrar um `skip_key_id`;
-* mapear o `skip_key_id` para o `qkd_key_id`;
-* expor endpoints compatíveis com SKIP;
-* entregar a PPK ao encryptor local;
-* aplicar política de uso único, expiração e revogação.
+Rotas genericas anteriores nao fazem parte da baseline atual. O contrato deve
+usar somente os paths ETSI listados nesta secao.
 
----
+### 7.2 Nomes JSON publicos
 
-## 5.4 Encryptor-A e Encryptor-B
+Os nomes no wire devem preservar o ETSI:
 
-Os encryptors representam os dispositivos que irão estabelecer uma sessão segura.
+- `source_KME_ID`
+- `target_KME_ID`
+- `master_SAE_ID`
+- `slave_SAE_ID`
+- `key_ID`
+- `key_IDs`
+- `additional_slave_SAE_IDs`
+- `extension_mandatory`
+- `extension_optional`
+- `status_extension`
+- `key_container_extension`
 
-Nesta baseline, eles podem ser implementados inicialmente como clientes simulados. Não é necessário integrar imediatamente com roteadores reais.
+Nomes internos Rust podem ser idiomaticos, mas a serializacao publica deve usar
+os nomes ETSI.
 
-### Responsabilidades dos encryptors
+### 7.3 `status`
 
-O `Encryptor-A` deve:
-
-* consultar `KeyProvider-A` via SKIP;
-* receber uma PPK e seu `skip_key_id`;
-* iniciar a negociação IKEv2/RFC8784;
-* enviar o identificador da PPK para Bob.
-
-O `Encryptor-B` deve:
-
-* receber o `skip_key_id`;
-* consultar `KeyProvider-B` via SKIP;
-* recuperar a mesma PPK;
-* usar a PPK no processo de derivação de chaves do IKEv2/RFC8784.
-
----
-
-## 6. Identificadores de chave
-
-A arquitetura utiliza dois identificadores distintos.
-
----
-
-## 6.1 `qkd_key_id`
-
-O `qkd_key_id` pertence ao domínio ETSI/QKD.
-
-Ele é criado ou gerenciado pela KME.
-
-Exemplo:
-
-```text
-qkd_key_id = QKD-2026-000001
-```
-
-Esse identificador é usado para recuperar uma chave dentro da infraestrutura QKD simulada.
-
----
-
-## 6.2 `skip_key_id`
-
-O `skip_key_id` pertence ao domínio SKIP.
-
-Ele é exposto aos encryptors.
-
-Exemplo:
-
-```text
-skip_key_id = SKIP-A-B-000001
-```
-
-Esse identificador é usado durante a negociação IKEv2/RFC8784 para indicar qual PPK deve ser usada.
-
----
-
-## 6.3 Mapeamento entre identificadores
-
-O Key Provider deve manter o seguinte mapeamento:
-
-```text
-skip_key_id → qkd_key_id → key_value
-```
-
-Exemplo:
-
-```text
-skip_key_id     = SKIP-A-B-000001
-qkd_key_id      = QKD-2026-000001
-key_value       = A1B2C3...
-local_system_id = Alice
-remote_system_id = Bob
-status          = available
-```
-
-O encryptor não precisa conhecer o `qkd_key_id`.
-
-A KME não precisa conhecer o `skip_key_id`, exceto se uma política de integração decidir registrar esse dado como metadado.
-
----
-
-## 7. Fluxo principal da baseline
-
-## 7.1 Geração lógica da chave QKD
-
-A camada simulada gera uma chave aleatória:
-
-```text
-key = random(256 bits)
-qkd_key_id = QKD-000001
-```
-
-A mesma chave é disponibilizada para os dois lados:
-
-```text
-KME-A recebe: QKD-000001, key
-KME-B recebe: QKD-000001, key
-```
-
----
-
-## 7.2 Coleta da chave pelo KeyProvider-A
-
-O `KeyProvider-A` solicita uma chave à `KME-A`:
+`KeyProvider-A` como `SAE-A` consulta `KME-A` para o peer `SAE-B`:
 
 ```http
-POST /api/v1/keys/get_key
+GET /api/v1/keys/SAE-B/status
+x-sae-id: SAE-A
 ```
-
-Exemplo de requisição:
-
-```json
-{
-  "source_sae_id": "KeyProvider-A",
-  "target_sae_id": "KeyProvider-B",
-  "size": 256,
-  "number": 1
-}
-```
-
-Exemplo de resposta:
-
-```json
-{
-  "keys": [
-    {
-      "key_ID": "QKD-000001",
-      "key": "A1B2C3..."
-    }
-  ]
-}
-```
-
-O `KeyProvider-A` armazena localmente:
-
-```text
-qkd_key_id = QKD-000001
-key_value = A1B2C3...
-peer = Bob
-status = available
-```
-
----
-
-## 7.3 Criação do identificador SKIP
-
-Após coletar a chave, o `KeyProvider-A` cria um identificador SKIP:
-
-```text
-skip_key_id = SKIP-A-B-000001
-```
-
-E registra o mapeamento:
-
-```text
-SKIP-A-B-000001 → QKD-000001 → A1B2C3...
-```
-
----
-
-## 7.4 Coleta da mesma chave pelo KeyProvider-B
-
-O `KeyProvider-B` precisa obter a chave correspondente em sua KME local.
-
-Ele consulta a `KME-B` usando o identificador QKD:
-
-```http
-POST /api/v1/keys/get_key_with_key_ids
-```
-
-Exemplo de requisição:
-
-```json
-{
-  "source_sae_id": "KeyProvider-B",
-  "target_sae_id": "KeyProvider-A",
-  "key_IDs": [
-    {
-      "key_ID": "QKD-000001"
-    }
-  ]
-}
-```
-
-Exemplo de resposta:
-
-```json
-{
-  "keys": [
-    {
-      "key_ID": "QKD-000001",
-      "key": "A1B2C3..."
-    }
-  ]
-}
-```
-
-O `KeyProvider-B` armazena localmente:
-
-```text
-skip_key_id = SKIP-A-B-000001
-qkd_key_id = QKD-000001
-key_value = A1B2C3...
-peer = Alice
-status = available
-```
-
----
-
-## 7.5 Entrega da chave para o Encryptor-A via SKIP
-
-O `Encryptor-A` solicita uma chave ao `KeyProvider-A`:
-
-```http
-GET /key?remoteSystemID=Bob
-```
-
-Resposta:
-
-```json
-{
-  "keyId": "SKIP-A-B-000001",
-  "key": "A1B2C3..."
-}
-```
-
-Nesse momento, o `Encryptor-A` passa a possuir:
-
-```text
-PPK = A1B2C3...
-PPK_ID = SKIP-A-B-000001
-```
-
----
-
-## 7.6 Envio do identificador ao Encryptor-B
-
-Durante a negociação IKEv2/RFC8784, o `Encryptor-A` envia o identificador da PPK:
-
-```text
-PPK_IDENTITY = SKIP-A-B-000001
-```
-
-A chave em si não é enviada pelo IKEv2.
-
-Apenas o identificador é enviado.
-
----
-
-## 7.7 Recuperação da chave pelo Encryptor-B via SKIP
-
-O `Encryptor-B` consulta seu Key Provider local:
-
-```http
-GET /key/SKIP-A-B-000001?remoteSystemID=Alice
-```
-
-Resposta:
-
-```json
-{
-  "keyId": "SKIP-A-B-000001",
-  "key": "A1B2C3..."
-}
-```
-
-Agora os dois lados possuem a mesma PPK:
-
-```text
-Encryptor-A: PPK = A1B2C3...
-Encryptor-B: PPK = A1B2C3...
-```
-
----
-
-## 7.8 Uso da PPK no RFC 8784
-
-A PPK é misturada no processo de derivação de chaves do IKEv2.
-
-Conceitualmente:
-
-```text
-segredo IKEv2 clássico = DH/ECDH
-segredo adicional      = PPK derivada de QKD
-chave final IPsec      = PRF(PPK, material intermediário do IKEv2)
-```
-
-Assim, a sessão IPsec passa a depender de dois elementos:
-
-1. o segredo negociado pelo IKEv2;
-2. a PPK fornecida pela cadeia ETSI 014 simulada → Key Provider → SKIP.
-
----
-
-## 8. Endpoints mínimos
-
-## 8.1 Endpoints da KME simulada
-
-### `GET /api/v1/status`
-
-Consulta o estado da KME.
 
 Resposta esperada:
 
@@ -601,420 +259,302 @@ Resposta esperada:
 {
   "source_KME_ID": "KME-A",
   "target_KME_ID": "KME-B",
-  "available_key_count": 100,
+  "master_SAE_ID": "SAE-A",
+  "slave_SAE_ID": "SAE-B",
+  "key_size": 256,
+  "stored_key_count": 1000000,
+  "max_key_count": 1000000,
+  "max_key_per_request": 128,
   "max_key_size": 256,
-  "status": "ready"
+  "min_key_size": 256,
+  "max_SAE_ID_count": 0,
+  "status_extension": {}
 }
 ```
 
----
+### 7.4 `enc_keys`
 
-### `POST /api/v1/keys/get_key`
-
-Solicita uma ou mais chaves novas.
-
-Exemplo de requisição:
-
-```json
-{
-  "source_sae_id": "KeyProvider-A",
-  "target_sae_id": "KeyProvider-B",
-  "size": 256,
-  "number": 1
-}
-```
-
-Exemplo de resposta:
-
-```json
-{
-  "keys": [
-    {
-      "key_ID": "QKD-000001",
-      "key": "A1B2C3..."
-    }
-  ]
-}
-```
-
----
-
-### `POST /api/v1/keys/get_key_with_key_ids`
-
-Solicita uma chave pelo identificador.
-
-Exemplo de requisição:
-
-```json
-{
-  "source_sae_id": "KeyProvider-B",
-  "target_sae_id": "KeyProvider-A",
-  "key_IDs": [
-    {
-      "key_ID": "QKD-000001"
-    }
-  ]
-}
-```
-
-Exemplo de resposta:
-
-```json
-{
-  "keys": [
-    {
-      "key_ID": "QKD-000001",
-      "key": "A1B2C3..."
-    }
-  ]
-}
-```
-
----
-
-## 8.2 Endpoints SKIP do Key Provider
-
-### `GET /capabilities`
-
-Retorna as capacidades do Key Provider.
-
-Exemplo:
-
-```json
-{
-  "entropy": true,
-  "key": true,
-  "algorithm": "ETSI014-MOCK-QKD",
-  "localSystemID": "Alice",
-  "remoteSystemID": [
-    "Bob"
-  ]
-}
-```
-
----
-
-### `GET /key?remoteSystemID=Bob`
-
-Solicita uma nova chave para comunicação com Bob.
-
-Resposta:
-
-```json
-{
-  "keyId": "SKIP-A-B-000001",
-  "key": "A1B2C3..."
-}
-```
-
----
-
-### `GET /key/{keyId}?remoteSystemID=Alice`
-
-Solicita uma chave específica pelo identificador SKIP.
-
-Exemplo:
+`KeyProvider-A` como `SAE-A` solicita chave para `SAE-B`:
 
 ```http
-GET /key/SKIP-A-B-000001?remoteSystemID=Alice
+POST /api/v1/keys/SAE-B/enc_keys
+content-type: application/json
+x-sae-id: SAE-A
+```
+
+```json
+{ "number": 1, "size": 256 }
 ```
 
 Resposta:
 
 ```json
 {
-  "keyId": "SKIP-A-B-000001",
-  "key": "A1B2C3..."
+  "keys": [
+    {
+      "key_ID": "QKD-000001",
+      "key": "<base64>"
+    }
+  ],
+  "key_container_extension": {}
 }
 ```
 
----
+O `enc_keys` cria ou emite registro com:
 
-### `GET /entropy`
+- `master_sae_id = SAE-A`;
+- `slave_sae_id = SAE-B`;
+- `key_ID = QKD-000001`;
+- bytes de chave;
+- estado de disponibilidade.
 
-Opcionalmente, retorna entropia da KME ou de fonte local.
+### 7.5 `dec_keys`
 
-Exemplo:
+`KeyProvider-B` como `SAE-B` recupera a chave para o master `SAE-A`:
+
+```http
+POST /api/v1/keys/SAE-A/dec_keys
+content-type: application/json
+x-sae-id: SAE-B
+```
 
 ```json
 {
-  "entropy": "F9A8B7C6D5..."
+  "key_IDs": [
+    { "key_ID": "QKD-000001" }
+  ]
 }
 ```
 
----
+Resposta:
 
-## 9. Modelo mínimo de banco de dados
-
-## 9.1 Banco da KME simulada
-
-```sql
-CREATE TABLE qkd_keys (
-    qkd_key_id        TEXT PRIMARY KEY,
-    key_value         TEXT NOT NULL,
-    source_kme_id     TEXT NOT NULL,
-    target_kme_id     TEXT NOT NULL,
-    source_sae_id     TEXT,
-    target_sae_id     TEXT,
-    key_size_bits     INTEGER NOT NULL,
-    status            TEXT NOT NULL,
-    created_at        TIMESTAMP NOT NULL,
-    delivered_at      TIMESTAMP,
-    used_at           TIMESTAMP,
-    expires_at        TIMESTAMP
-);
+```json
+{
+  "keys": [
+    {
+      "key_ID": "QKD-000001",
+      "key": "<base64>"
+    }
+  ],
+  "key_container_extension": {}
+}
 ```
 
-Status recomendados:
+`dec_keys` deve verificar:
+
+- caller SAE e o slave armazenado;
+- path `{master_SAE_ID}` e o master armazenado;
+- existencia do `key_ID`;
+- disponibilidade da chave.
+
+`dec_keys` e one-time: depois de uma recuperacao bem-sucedida, o `kms/`
+remove ou torna indisponivel a chave. Uma segunda recuperacao do mesmo
+`key_ID` deve falhar.
+
+## 8. Identidade e autorizacao
+
+O ADR 0003 define topologia como politica de seguranca, nao como metadado de
+status.
+
+### 8.1 Fonte de identidade
+
+| Modo | Fonte da identidade SAE |
+|---|---|
+| mTLS habilitado | Common Name do certificado de cliente autenticado |
+| mTLS desabilitado | Header local `x-sae-id` |
+
+`x-sae-id` so e valido quando mTLS esta desabilitado. Em modo mTLS, o caller
+SAE vem do certificado, nao do header.
+
+### 8.2 Rejeicoes obrigatorias
+
+O simulador deve rejeitar antes de liberar material de chave:
+
+- caller SAE desconhecido;
+- peer SAE desconhecido;
+- master incorreto;
+- slave incorreto;
+- ownership divergente;
+- chave inexistente;
+- chave ja consumida;
+- tamanho de chave nao suportado;
+- `extension_mandatory` nao suportado.
+
+## 9. Fonte de chaves, storage e lifecycle
+
+O ADR 0004 define que o material de chave vem de uma key-source explicita.
+
+No runtime atual do `kms/`, a key-source usa aleatoriedade do sistema
+operacional para chaves de 256 bits. Para esta baseline de duas KMEs, testes
+podem usar uma fake key-source deterministica para que `KME-A` e `KME-B`
+conhecam os mesmos bytes para o mesmo `key_ID` sem compartilhar storage.
+
+Storage:
+
+- SQLite e o backend duravel padrao configurado.
+- Memoria e aceitavel para execucoes efemeras, testes unitarios e
+  desenvolvimento local.
+- O storage ETSI guarda `key_ID`, `master_sae_id`, `slave_sae_id` e bytes de
+  chave.
+- `dec_keys` apaga ou consome a chave apos recuperacao bem-sucedida.
+
+## 10. SKIP e mapeamento de identificadores
+
+O contrato SKIP segue `draft-singh-skip-00`.
+
+### 10.1 Endpoints SKIP documentados
+
+| Metodo | Path | Uso |
+|---|---|---|
+| `GET` | `/capabilities` | Capacidades do provider. |
+| `GET` | `/key?remoteSystemID={id}` | Chave nova para sistema remoto. |
+| `GET` | `/key?remoteSystemID={id}&size={bits}` | Chave nova com tamanho solicitado. |
+| `GET` | `/key/{keyId}?remoteSystemID={id}` | Chave existente pelo `keyId`. |
+| `GET` | `/entropy` | Entropia do provider. |
+| `GET` | `/entropy?minentropy={bits}` | Entropia minima solicitada. |
+
+### 10.2 Campos SKIP
+
+- `localSystemID`
+- `remoteSystemID`
+- `keyId`
+- `key`
+- `entropy`
+
+O `key` ETSI e base64. O `key` SKIP e hexadecimal.
+
+### 10.3 `keyId` deterministico
+
+O mapeamento baseline e:
 
 ```text
-available
-reserved
-delivered
-used
-expired
-revoked
+skip_key_id = SKIP-{master_SAE_ID}-{slave_SAE_ID}-{key_ID}
 ```
-
----
-
-## 9.2 Banco do Key Provider
-
-```sql
-CREATE TABLE skip_keys (
-    skip_key_id       TEXT PRIMARY KEY,
-    qkd_key_id        TEXT NOT NULL,
-    key_value         TEXT NOT NULL,
-    local_system_id   TEXT NOT NULL,
-    remote_system_id  TEXT NOT NULL,
-    key_size_bits     INTEGER NOT NULL,
-    source            TEXT NOT NULL,
-    status            TEXT NOT NULL,
-    created_at        TIMESTAMP NOT NULL,
-    delivered_at      TIMESTAMP,
-    used_at           TIMESTAMP,
-    expires_at        TIMESTAMP
-);
-```
-
-Valores recomendados para `source`:
-
-```text
-ETSI014_MOCK
-SIMULATED_QKD
-DERIVED_HKDF
-DERIVED_RANA
-REAL_QKD
-```
-
-Status recomendados:
-
-```text
-available
-reserved
-delivered
-used
-expired
-revoked
-mismatch
-```
-
----
-
-## 10. Políticas mínimas
-
-## 10.1 Uso único
-
-Por padrão, uma PPK deve ser usada uma única vez para estabelecer uma sessão IPsec.
-
-Após a entrega para o encryptor, a chave pode ser marcada como:
-
-```text
-delivered
-```
-
-Após confirmação de uso, pode ser marcada como:
-
-```text
-used
-```
-
----
-
-## 10.2 Expiração
-
-Cada chave deve possuir um tempo de validade.
 
 Exemplo:
 
 ```text
-expires_at = created_at + 300 segundos
+key_ID      = QKD-000001
+master SAE  = SAE-A
+slave SAE   = SAE-B
+skip_key_id = SKIP-SAE-A-SAE-B-QKD-000001
 ```
 
-Chaves expiradas não devem ser entregues.
+O `keyId` nao contem material de chave. Ele e um identificador textual para
+debug e handoff simulado.
 
----
-
-## 10.3 Vinculação ao peer
-
-Uma chave deve estar vinculada a um par específico.
-
-Exemplo:
+## 11. Fluxo ponta a ponta
 
 ```text
-Alice ↔ Bob
+1. KeyProvider-A as SAE-A -> KME-A
+   GET /api/v1/keys/SAE-B/status
+
+2. KeyProvider-A as SAE-A -> KME-A
+   POST /api/v1/keys/SAE-B/enc_keys
+   body: { "number": 1, "size": 256 }
+
+3. KME-A returns:
+   { "keys": [ { "key_ID": "QKD-000001", "key": "<base64>" } ] }
+
+4. KeyProvider-A converts:
+   ETSI base64 -> bytes -> SKIP hex
+
+5. Encryptor-A -> KeyProvider-A
+   GET /key?remoteSystemID=Bob
+   response: { "keyId": "SKIP-SAE-A-SAE-B-QKD-000001", "key": "<hex>" }
+
+6. Encryptor-A hands keyId to Encryptor-B through simulated handoff.
+
+7. Encryptor-B -> KeyProvider-B
+   GET /key/SKIP-SAE-A-SAE-B-QKD-000001?remoteSystemID=Alice
+
+8. KeyProvider-B maps:
+   SKIP-SAE-A-SAE-B-QKD-000001 -> QKD-000001
+
+9. KeyProvider-B as SAE-B -> KME-B
+   POST /api/v1/keys/SAE-A/dec_keys
+   body: { "key_IDs": [ { "key_ID": "QKD-000001" } ] }
+
+10. KME-B returns:
+    { "keys": [ { "key_ID": "QKD-000001", "key": "<base64>" } ] }
+
+11. KeyProvider-B converts:
+    ETSI base64 -> bytes -> SKIP hex
+
+12. Required invariant:
+    key_hex_alice == key_hex_bob
+
+13. KME-B consumes QKD-000001 after successful dec_keys.
 ```
 
-O `KeyProvider-A` não deve entregar para Bob uma chave associada a outro peer.
+## 12. Testes e fidelidade
 
----
+O ADR 0005 define que a fidelidade deve ser testada em camadas.
 
-## 10.4 Verificação de sincronismo
+Comandos exigidos para o `kms/`:
 
-Quando Alice e Bob recuperam uma chave com o mesmo `skip_key_id`, o valor da chave deve ser idêntico.
-
-A baseline deve permitir detectar:
-
-* `skip_key_id` inexistente;
-* `qkd_key_id` inexistente;
-* chave expirada;
-* chave já usada;
-* chave divergente entre Alice e Bob;
-* associação incorreta de peer.
-
----
-
-## 11. Fluxo resumido ponta a ponta
-
-```text
-1. A KME simulada gera:
-   qkd_key_id = QKD-000001
-   key = A1B2C3...
-
-2. A mesma chave é registrada em KME-A e KME-B.
-
-3. KeyProvider-A chama KME-A via GET_KEY.
-
-4. KME-A retorna QKD-000001 e A1B2C3...
-
-5. KeyProvider-A cria:
-   skip_key_id = SKIP-A-B-000001
-
-6. KeyProvider-A armazena:
-   SKIP-A-B-000001 → QKD-000001 → A1B2C3...
-
-7. KeyProvider-B chama KME-B via GET_KEY_WITH_KEY_IDS.
-
-8. KME-B retorna QKD-000001 e A1B2C3...
-
-9. KeyProvider-B armazena:
-   SKIP-A-B-000001 → QKD-000001 → A1B2C3...
-
-10. Encryptor-A chama:
-    GET /key?remoteSystemID=Bob
-
-11. KeyProvider-A retorna:
-    keyId = SKIP-A-B-000001
-    key = A1B2C3...
-
-12. Encryptor-A envia o keyId para Bob no fluxo IKEv2/RFC8784.
-
-13. Encryptor-B chama:
-    GET /key/SKIP-A-B-000001?remoteSystemID=Alice
-
-14. KeyProvider-B retorna:
-    keyId = SKIP-A-B-000001
-    key = A1B2C3...
-
-15. Encryptor-A e Encryptor-B usam a mesma PPK.
-
-16. IKEv2 mistura a PPK na derivação de chaves conforme RFC 8784.
-
-17. O túnel IPsec é estabelecido.
-
-18. A chave é marcada como usada.
+```bash
+cargo fmt --all -- --check
+cargo clippy --workspace --all-targets -- -D warnings
+cargo test --workspace
 ```
 
----
+Testes unitarios devem cobrir:
 
-## 12. Validações esperadas
+- carregamento e validacao de configuracao;
+- lookup de topologia;
+- autorizacao SAE;
+- key-source, incluindo fakes deterministicas quando adicionadas;
+- storage ETSI;
+- lifecycle one-time;
+- validacao de requests;
+- mapeamento de erros de protocolo.
 
-A baseline deve validar:
+Testes de router devem cobrir:
 
-* a mesma chave é entregue aos dois lados;
-* `qkd_key_id` é corretamente mapeado para `skip_key_id`;
-* o Key Provider consegue atuar como cliente ETSI 014 e servidor SKIP;
-* o encryptor nunca acessa diretamente a KME;
-* o encryptor recebe apenas `keyId` e `key` via SKIP;
-* Bob consegue recuperar a mesma chave a partir do `keyId`;
-* chaves expiradas ou usadas não são reutilizadas;
-* erros de sincronização são detectados;
-* o fluxo está pronto para integração posterior com IKEv2/RFC8784 real.
+- paths e metodos ETSI exatos;
+- formas GET simples e POST completas;
+- nomes JSON ETSI via Serde;
+- resposta de `status`;
+- `enc_keys` com chave base64;
+- `dec_keys` por `key_ID`;
+- consumo unico apos `dec_keys`;
+- rejeicoes de caller/master/slave desconhecidos;
+- rejeicoes de ownership errado;
+- tamanhos e extensoes obrigatorias nao suportadas;
+- status codes e corpos de erro com formato ETSI quando aplicavel.
 
----
+Testes de integracao futuros devem cobrir:
 
-## 13. Justificativa arquitetural
+- servidor HTTP vivo;
+- extracao de identidade mTLS por Common Name;
+- persistencia SQLite apos restart;
+- interoperabilidade com clientes SAE experimentais;
+- modulos de protocolo futuros no mesmo binario.
 
-A baseline separa a arquitetura em camadas independentes:
+## 13. Assuncoes de seguranca
 
-```text
-Camada ETSI 014 simulada:
-simula a entrega de chaves QKD sincronizadas.
+- O material de chave e simulado.
+- Esta baseline nao e production-ready.
+- HTTP local com `x-sae-id` e apenas simplificacao de desenvolvimento/teste.
+- mTLS, autenticacao de providers, hardening de segredos e redacao estruturada
+  sao trabalhos futuros.
+- Nunca registrar material completo de chave em logs; usar fingerprints.
+- O `keyId` nao deve revelar material de chave.
 
-Camada Key Provider:
-coleta chaves da KME, armazena localmente e expõe SKIP.
+## 14. Criterios de aceitacao da baseline
 
-Camada Encryptor:
-consome PPKs via SKIP e utiliza no IKEv2/RFC8784.
-```
+A baseline esta correta quando:
 
-Essa separação permite validar a integração sem depender inicialmente de hardware QKD, NetSquid, BB84 ou canal quântico.
-
-A contribuição principal desta baseline é desenhar e validar o ponto de integração entre uma fonte de chaves QKD exposta por uma interface ETSI 014 e um mecanismo de provisionamento de PPKs baseado em SKIP para uso posterior em IPsec/IKEv2 com RFC 8784.
-
----
-
-## 14. Evoluções futuras
-
-Após validar esta baseline, o projeto poderá evoluir para:
-
-1. integração com implementação real de IKEv2/RFC8784;
-2. automação de provisionamento em roteadores ou gateways IPsec;
-3. integração com equipamentos QKD reais;
-4. expansão de chaves com HKDF;
-5. expansão de chaves com RanA;
-6. comparação entre PPK estática e PPK derivada de QKD;
-7. análise de latência de coleta da chave;
-8. análise de taxa de consumo de PPKs;
-9. política de rotação automática;
-10. múltiplos peers e múltiplos Key Providers;
-11. integração com HSM;
-12. auditoria e trilhas de uso de chaves.
-
----
-
-## 15. Hipótese da baseline
-
-A hipótese desta baseline é:
-
-> Se uma infraestrutura QKD disponibiliza chaves simétricas sincronizadas por uma interface compatível com ETSI GS QKD 014, então um Key Provider pode coletar essas chaves, armazená-las localmente, expô-las via SKIP e permitir seu uso como PPK em IKEv2/RFC8784, sem acoplar diretamente o encryptor à infraestrutura QKD.
-
----
-
-## 16. Resultado esperado
-
-Ao final da baseline, espera-se demonstrar que:
-
-```text
-Alice e Bob conseguem obter a mesma PPK,
-a partir de KMEs simuladas compatíveis com ETSI 014,
-por meio de Key Providers independentes,
-usando SKIP como interface de entrega ao encryptor.
-```
-
-Esse resultado estabelece a base para uma arquitetura de integração entre QKD, ETSI 014, SKIP e IPsec/IKEv2 com RFC 8784.
-
-```
-
-**Confiança:** alto. A versão remove NetSquid, BB84 físico e canal quântico, e concentra a baseline na coleta lógica da chave QKD via API ETSI 014 simulada e na integração com Key Provider, SKIP e RFC 8784.
-```
+- `baseline.md` aponta `kms/` como simulador KME oficial.
+- `KME-A` e `KME-B` sao instancias separadas, sem storage KME compartilhado.
+- `KeyProvider-A` e `KeyProvider-B` tem estado SQLite separado.
+- A API ETSI publica usa somente `status`, `enc_keys` e `dec_keys` nas rotas
+  suportadas por ADR 0002.
+- Os nomes JSON publicos preservam `source_KME_ID`, `target_KME_ID`,
+  `master_SAE_ID`, `slave_SAE_ID`, `key_ID` e `key_IDs`.
+- Identidade SAE respeita mTLS Common Name ou `x-sae-id` apenas sem mTLS.
+- `dec_keys` e one-time.
+- Material ETSI e base64; material SKIP e hexadecimal.
+- O fluxo ponta a ponta preserva `key_hex_alice == key_hex_bob`.
+- Cisco real e IKEv2/RFC8784 real permanecem futuros.
